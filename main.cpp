@@ -70,8 +70,13 @@ int main(int argc,char*argv[]){
     #endif
 
 
-    FM(cellVec);
+    #ifdef DEBUG
+    FM(cellVec,0.375,0.625);
+    #endif
 
+    #ifndef DEBUG
+    FM(cellVec,0.45,0.55);
+    #endif
 
     for(auto net:netList)
         delete net;

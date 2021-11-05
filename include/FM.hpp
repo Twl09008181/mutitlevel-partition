@@ -24,6 +24,10 @@ struct Cell{
     std::list<Net*>nets;
     int netNum = 0;
     void addNet(Net*net){nets.push_front(net);netNum++;}
+
+    int gain = 0;
+    bool freeze = true;
+    std::list<int>::iterator it;//to access gain bucket.
 };//using std::vector<Cell> to save all Cells.   
 
 //First step is to build CellArray (sorted by id),and save sortId.
@@ -42,12 +46,15 @@ inline std::pair<int,int> GroupNum(const Net& net,const Cell& cell){
 struct Bucket{
     using CellId = int;//pesudo id.
     std::vector<std::list<CellId>>gainVec;
-    CellId getMax(){return maxGain;}
     int maxGain;   
     int maxPin;
+    std::pair<int,int> front();//return <max-gain cellID,gain>
+    void pop_front();
+    void erase(Cell&cell);
+    void push_front(Cell&cell);
 };
 
-void FM(std::vector<Cell>&cellVec);
+void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2);
 
 
 
