@@ -14,8 +14,19 @@ void InitNets(std::vector<Cell>&cellVec);
 //group cells
 
 
+
+std::map<int,char>dict{
+    {1,'a'},{2,'b'},{3,'c'},{4,'d'},{5,'e'},{6,'f'},{7,'g'},{8,'h'} 
+};
+
+
 int main(int argc,char*argv[]){
 
+    if(argc!=2)
+    {
+        std::cerr<<"please enter ./main <INPUT> \n";
+        exit(1);
+    }
 
     
     auto info = parser(argv[1]);//get unsorted cellVec
@@ -35,27 +46,31 @@ int main(int argc,char*argv[]){
     InitialPartition(cellVec,partition);         //這邊要想辦法做一個初始的partition
      
 
-    std::map<int,char>dict{
-        {1,'a'},{2,'b'},{3,'c'},{4,'d'},{5,'e'},{6,'f'},{7,'g'},{8,'h'} 
-    };
 
-
-    for(auto &cell:cellVec)
-    {
-        std::string gp = cell.group1 ? "group1" : "group2";
-        std::cout<<dict[cell.id]<<" is " << gp <<"\n";
-    }
-    InitNets(cellVec);
-
-    for(auto net:netList){
-        std::cout<<"Net:"<<net->NetId<<"\n";
-        std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
-        for(auto cell:net->cells)
+    #ifdef DEBUG
+        for(auto &cell:cellVec)
         {
-            std::cout<<dict[cellVec.at(cell).id]<<" ";
+            std::string gp = cell.group1 ? "group1" : "group2";
+            std::cout<<dict[cell.id]<<" is " << gp <<"\n";
         }
-        std::cout<<"\n";
-    }
+    #endif
+
+    InitNets(cellVec);
+    
+    #ifdef DEBUG
+        for(auto net:netList){
+            std::cout<<"Net:"<<net->NetId<<"\n";
+            std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
+            for(auto cell:net->cells)
+            {
+                std::cout<<dict[cellVec.at(cell).id]<<" ";
+            }
+            std::cout<<"\n";
+        }
+    #endif
+
+
+    FM(cellVec);
 
 
     for(auto net:netList)
@@ -99,11 +114,11 @@ std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &fileName)
                 int pos = cellRecord.size();
                 cellRecord.insert({id,pos});
                 cells.at(pos).id = id;
-                cells.at(pos).nets.push_front(net);
+                cells.at(pos).addNet(net);
             }
             else{
                 int pos = cptr->second;
-                cells.at(pos).nets.push_front(net);
+                cells.at(pos).addNet(net);
             }
         }
     }
