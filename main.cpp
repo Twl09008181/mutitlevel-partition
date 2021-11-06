@@ -11,7 +11,7 @@
 std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &filename);
 void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition);
 void InitialPartition_avg(std::vector<Cell>&cellVec);
-void InitNets(std::vector<Cell>&cellVec);
+void Output(std::vector<Cell>&cellVec);
 //group cells
 
 
@@ -107,7 +107,7 @@ int main(int argc,char*argv[]){
 
 
     std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-
+    Output(cellVec);
     for(auto net:netList)
         delete net;
     return 0;
@@ -179,4 +179,11 @@ void InitialPartition_avg(std::vector<Cell>&cellVec){
         cellVec.at(i).group1 = group1;
         group1 = !group1;
     }
+}
+
+void Output(std::vector<Cell>&cellVec){
+    std::ofstream out{"output.txt"};
+    for(auto c:cellVec)
+        out << c.group1 <<"\n";
+    out.close();
 }
