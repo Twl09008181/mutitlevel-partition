@@ -30,10 +30,7 @@ void Bucket:: erase(Cell&cell){
     if(cell.gain==maxGain){//update max gain
         int idx;
         for(idx = maxGain + maxPin; idx >=0 && gainVec.at(idx).empty() ;idx--);
-        if(idx>=0)
-            maxGain = idx - maxPin;
-        else 
-            maxGain = -maxPin;
+        maxGain = std::max(idx - maxPin,-maxPin);
     }
 }
 
@@ -66,7 +63,8 @@ void Bucket::pop_front(){
     if(!lst.empty())lst.pop_front();
     int idx;
     for(idx = maxGain + maxPin; idx >=0 && gainVec.at(idx).empty() ;idx--);
-    maxGain = idx - maxPin;
+    maxGain = std::max(idx - maxPin,-maxPin);
+
 }
 void Bucket::push_front(Cell&cell)
 {
@@ -310,7 +308,6 @@ void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
         {
             std::cout<<i<<" "<<dict[cellVec.at(moveRecord.at(i)).id]<<" "<<gainAcc.at(i)<<"\n";
         }
-
     }
 
 
