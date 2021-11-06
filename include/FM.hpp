@@ -36,6 +36,7 @@ struct Cell{
 
 //Second step is to init the Net objects, saving pesudo id and group1,group2 by scan all cells.
 
+void InitNets(std::vector<Cell>&cellVec);
 
 // <from part,to part>
 inline std::pair<int,int> GroupNum(const Net& net,const Cell& cell){

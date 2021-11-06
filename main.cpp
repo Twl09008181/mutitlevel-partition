@@ -142,14 +142,4 @@ void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition)
     }
 
 }
-void InitNets(std::vector<Cell>&cellVec)
-{
-    for(auto &cell:cellVec)
-    {
-        for(auto net:cell.nets)
-        {
-            net->cells.push_back(cell.sortId);
-            cell.group1 ? (net->group1++):(net->group2++);
-        }
-    }
-}
+
