@@ -55,7 +55,7 @@ int main(int argc,char*argv[]){
         }
     #endif
 
-    InitNets(cellVec);
+    InitNets(cellVec,netList);
     
     #ifdef DEBUG
         for(auto net:netList){

@@ -36,7 +36,7 @@ struct Cell{
 
 //Second step is to init the Net objects, saving pesudo id and group1,group2 by scan all cells.
 
-void InitNets(std::vector<Cell>&cellVec);
+void InitNets(std::vector<Cell>&cellVec,std::list<Net*>&nets);
 
 // <from part,to part>
 inline std::pair<int,int> GroupNum(const Net& net,const Cell& cell){
@@ -57,7 +57,6 @@ struct Bucket{
     int maxGain;   
     int maxPin;
     std::pair<int,int> front(ties* tie = nullptr);//return <max-gain cellID,gain>
-    void pop_front();
     void erase(Cell&cell);
     void push_front(Cell&cell);
 };

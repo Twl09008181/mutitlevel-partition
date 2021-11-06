@@ -17,17 +17,16 @@ extern std::map<int,char>dict;
 
 
 
-
+// used to move cellId in gainbucket.
 void Bucket:: erase(Cell&cell){
-    if(cell.freeze)
-    {
+    if(cell.freeze){// if cell is already freeze,then it can't be in gainbucket.
         std::cerr<<"carefull,cell.freeze = true";
         return ;
     }
     auto &lst = gainVec.at(cell.gain + maxPin);
     lst.erase(cell.it);
     cell.freeze = true;
-    if(cell.gain==maxGain){//update max gain
+    if(cell.gain == maxGain){//update max gain
         int idx;
         for(idx = maxGain + maxPin; idx >=0 && gainVec.at(idx).empty() ;idx--);
         maxGain = std::max(idx - maxPin,-maxPin);
@@ -37,7 +36,7 @@ void Bucket:: erase(Cell&cell){
 // return <id,gain>
 std::pair<int,int> Bucket::front(ties *tie){
    
-    auto &lst = gainVec.at(maxGain + maxPin);//if no rules for solving ties, return first
+    auto &lst = gainVec.at(maxGain + maxPin);
    
     if(maxGain==-maxPin && lst.empty())
         return {-1,-1};//no cell can move
@@ -45,27 +44,18 @@ std::pair<int,int> Bucket::front(ties *tie){
         std::cerr<<"Bucket::front error, maxGain:"<<maxGain<<" but empty\n";
         exit(1);
     }
+
+    // if any rules for picking cell,then call tie , otherwise,return front.
     if(!tie)
         return {lst.front(),maxGain};
     else {
         std::list<int>::iterator ptr = lst.begin();
         int cellId = *ptr;
-        while(ptr!=lst.end()){
-            cellId = tie(maxGain,maxGain,cellId,*ptr);
-            ++ptr;
-        }
+        for(;ptr!=lst.end();++ptr)cellId = tie(maxGain,maxGain,cellId,*ptr);
         return {cellId,maxGain};
     }
 }
 
-void Bucket::pop_front(){
-    auto &lst = gainVec.at(maxGain + maxPin);
-    if(!lst.empty())lst.pop_front();
-    int idx;
-    for(idx = maxGain + maxPin; idx >=0 && gainVec.at(idx).empty() ;idx--);
-    maxGain = std::max(idx - maxPin,-maxPin);
-
-}
 void Bucket::push_front(Cell&cell)
 {
     int pos = maxPin + cell.gain; // min gain = -maxPin
@@ -82,21 +72,26 @@ void Bucket::push_front(Cell&cell)
 // O(maxPin) construct gainBucket
 void initGainBucket(std::vector<Cell>&cellVec,Bucket&b1,Bucket&b2)
 {
-    // Allocate
-    int maxPin = 0;
-    for(auto &cell:cellVec) maxPin = std::max(cell.netNum,maxPin);
     b1.gainVec.clear();b2.gainVec.clear();
-    b1.gainVec.resize(maxPin * 2 + 1);// index : [0,2*maxPin] , gain: [-maxPin,maxPin]
-    b2.gainVec.resize(maxPin * 2 + 1);
+
+    // Allocate
+    static int maxPin = 0;
+    if(maxPin == 0 )
+    for(auto &cell:cellVec) maxPin = std::max(cell.netNum,maxPin);
+
+    int size = maxPin * 2 + 1;
+    if(b1.gainVec.size()!= size)b1.gainVec.resize(size);// index : [0,2*maxPin] , gain: [-maxPin,maxPin]
+    if(b2.gainVec.size()!= size)b2.gainVec.resize(size);
+
     b1.maxGain = b2.maxGain = -maxPin;
-    b1.maxPin = b2.maxPin = maxPin;
+    b1.maxPin  = b2.maxPin  = maxPin;
 
     // Build
     for(auto &cell:cellVec){
         int gain = 0;
         for(auto net : cell.nets){
             auto From_To_Num = GroupNum(*net,cell);
-            if(From_To_Num.first==1)gain++;  //From set == 1 
+            if(From_To_Num.first==1) gain++;  //From set == 1 
             if(From_To_Num.second==0)gain--; //To set == 0
         }
         cell.gain = gain;
@@ -132,7 +127,9 @@ inline int group1Num(std::vector<Cell>&cellVec){
 }
 
 
-void InitNets(std::vector<Cell>&cellVec){
+void InitNets(std::vector<Cell>&cellVec,std::list<Net*>&nets){
+    for(auto n:nets)
+        n->group1 = n->group2 = 0;
     for(auto &cell : cellVec){
         for(auto net : cell.nets){
             net->cells.push_back(cell.sortId);
@@ -141,52 +138,47 @@ void InitNets(std::vector<Cell>&cellVec){
     }
 }
 
-
-void update(std::vector<Cell>&cellVec,Net*net,std::pair<Bucket*,Bucket*>&buckets,bool group1,int val,bool updateOne = false){
+// update cells in same netlist of moving cell.
+void update(std::vector<Cell>&cellVec,Net*net,Cell*movingcell,std::pair<Bucket*,Bucket*>&buckets,bool group1,bool increment,bool onlyOne){
     for(auto cellId:net->cells){
-        Cell& cell = cellVec.at(cellId);
-
-        if(cell.freeze)continue;
-        
-        if(group1==cell.group1){//指定的group
+        Cell& cell = cellVec.at(cellId);// get cell        
+        if(group1 == cell.group1){ // the specified group.
+            if(cell.freeze){
+                if(onlyOne&& &cell != movingcell)break;
+                else continue;
+            }
             Bucket * b = nullptr;
-            group1? (b = buckets.first) : (b = buckets.second);
-            b->erase(cell);
-            cell.gain += val;
-            b->push_front(cell);
-            if(updateOne)break;
+            cell.group1 ? (b = buckets.first) : (b = buckets.second);// find the bucket
+            b->erase(cell); // erase 
+            increment ? cell.gain++ : cell.gain--;
+            b->push_front(cell); // re-push
+            if(onlyOne)break;// do not need to check other cell.
         }
     }
 }
 
-void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&buckets)
-{
+void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&buckets){
     Cell& cell = cellVec.at(cellId);
-    for(auto net:cell.nets)
-    {
+    cell.group1 ? (buckets.first->erase(cell)):(buckets.second->erase(cell));
+    bool from_group = cell.group1;
+    for(auto net:cell.nets){
         auto From_To_Num = GroupNum(*net,cell);    
-
         int To = From_To_Num.second;
-        if(To==0) // if to == 0
-            update(cellVec,net,buckets,cell.group1,1);//update same group cells
-        else if (To==1) // if to == 1
-            update(cellVec,net,buckets,!cell.group1,-1,true);//update differnt group cells
-        
+        if(To == 0) 
+            update(cellVec,net,&cell,buckets,from_group,true,false);//increment "from group" cells's gain. 
+        else if (To == 1) // if to == 1
+            update(cellVec,net,&cell,buckets,!from_group,false,true);//decrement "to group" cell's gain. 
+        //assume move
         int From = From_To_Num.first - 1;
-
-        //assume after move 
         if(From == 0) // if From ==0
-            update(cellVec,net,buckets,!cell.group1,-1);//update To group cells
-        else if (From==1) // if From == 1
-            update(cellVec,net,buckets,cell.group1,1,true);//update From group cell.
-
+            update(cellVec,net,&cell,buckets,!from_group,false,false);//decrement "to group" cells's gain. 
+        else if (From == 1) // if From == 1
+            update(cellVec,net,&cell,buckets,from_group,true,true);//increment "from group" cell's gain. 
         //update net's group num.
-        if(cell.group1)
-        {
+        if(cell.group1){
             net->group1--;
             net->group2++;
-        }
-        else{
+        }else{
             net->group1++;
             net->group2--;
         }
@@ -196,59 +188,54 @@ void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&bucket
 }
 
 
+inline bool ratioPrecheck(const std::pair<float,float>&ratios,const std::pair<int*,int*>&groups){
+    float r = (float) (*groups.first) / (*groups.first + *groups.second);
+    return (r >= ratios.first && r <= ratios.second);
+}
+
+
+std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,Bucket*>buckets,std::pair<float,float>ratios,\
+    std::pair<int*,int*>groups,ties *tie){
+    float r1 = (float) (*groups.first - 1) / (*groups.first + *groups.second); // if move cell in partition1 to 2
+    float r2 = (float) (*groups.first + 1) / (*groups.first + *groups.second); // if move cell in partition2 to 1
+    Bucket *b1 = buckets.first;
+    Bucket *b2 = buckets.second;
+    auto c1 = b1->front(tie);//<id,gain>
+    auto c2 = b2->front(tie);
+    if(c1.first==-1 && c2.first==-1){return {{-1,0},{-1,0}};}
+    if(c1.first==-1 && r2 > ratios.second){return {{-1,1},{-1,1}};} //只能動c2,但partition 1 已經太大
+    if(c2.first==-1 && r1  < ratios.first){return {{-1,2},{-1,2}};}//只能動c1,但partition 1 已經太小
+    int gain1 = (c1.first!=-1 && r1 >= ratios.first) ? c1.second : -INT_MAX;
+    int gain2 = (c2.first!=-1 && r2 <= ratios.second) ? c2.second : -INT_MAX;
+    return {{c1.first,gain1},{c2.first,gain2}};
+}
+
 //first : move id
 //second : gain
 std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
-    std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie)
-{
-    //pre-check
-    float r = (float) (*groups.first) / (*groups.first + *groups.second);
-    if(r < ratios.first || r > ratios.second)
-    {
+    std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie){
+    //pre-check current ratio
+    if(!ratioPrecheck(ratios,groups)){
         std::cerr<<"error in onePass, error ratio state! , you must have any  valid init solution.\n";
         exit(1);
     }
-    // the ratio of partition1 after two differnt move
-    float r1 = (float) (*groups.first - 1) / (*groups.first + *groups.second); // if move cell in partition1 to 2
-    float r2 = (float) (*groups.first + 1) / (*groups.first + *groups.second); // if move cell in partition2 to 1
+    auto candidates = getCandidate(buckets,ratios,groups,tie);// get
+    if(candidates.first.first==-1 && candidates.second.first==-1)return candidates.first;// no cell can move
 
-    Bucket *b1 = buckets.first;
-    Bucket *b2 = buckets.second;
-
- 
-
-    auto c1 = b1->front(tie);//<id,gain>
-    auto c2 = b2->front(tie);
-
-    //can't move
-    if(c1.first==-1 && c2.first==-1){return {-1,0};}
-    if(c1.first==-1 && r2 > ratios.second){return {-1,1};} //只能動c2,但partition 1 已經太大
-    if(c2.first==-1 && r1  < ratios.first){return {-1,2};}//只能動c1,但partition 1 已經太小
-    int gain1 = (c1.first!=-1 && r1 >= ratios.first) ? c1.second : -INT_MAX;
-    int gain2 = (c2.first!=-1 && r2 <= ratios.second) ? c2.second : -INT_MAX;
-    
-    bool moveGp1 = gain1 >= gain2;
-    if(tie){
-        moveGp1 = tie(gain1,gain2,c1.first,c2.first)==c1.first;
-    }
-
-    int gain,cellId;
+    int c1 = candidates.first.first    ,    c2 = candidates.second.first;
+    int gain1 = candidates.first.second, gain2 = candidates.second.second;
+    bool moveGp1 = tie ? (tie(gain1,gain2,c1,c2) == c1): (gain1 >= gain2); // choose cell to move
     if(moveGp1){
-        b1->erase(cellVec.at(c1.first));
-        gain = gain1;cellId = c1.first;
-        move(cellVec,cellId,buckets);
+        move(cellVec,c1,buckets);
         *groups.first -=1;
         *groups.second+=1;
-    }
-    else{
-        b2->erase(cellVec.at(c2.first));
-        gain = gain2;cellId = c2.first;
-        move(cellVec,cellId,buckets);
+        return {c1,gain1};
+    }else{
+        move(cellVec,c2,buckets);
         *groups.first +=1;
         *groups.second-=1;
+        return {c2,gain2};
     }
-  
-    return {cellId,gain};
 }
 
 void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
@@ -280,7 +267,7 @@ void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
     // int s = 1;
     for(; i < s ; i++){
         auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num},alphabetical_order);
-        if(pass.first==-1)break;
+        if(pass.first==-1)break; // no cell can move.
         else{
             #ifdef DEBUG
             std::cout<<"---------MOVE "<<dict[cellVec.at(pass.first).id]<<"\n";
