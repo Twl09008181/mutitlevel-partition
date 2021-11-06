@@ -191,7 +191,7 @@ void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&bucket
 inline bool ratioPrecheck(const std::pair<float,float>&ratios,const std::pair<int*,int*>&groups){
     float r = (float) (*groups.first) / (*groups.first + *groups.second);
 
-    std::cout<<"gp1:"<<*groups.first<<" gp2: "<<*groups.second<<"\n";
+    // std::cout<<"gp1:"<<*groups.first<<" gp2: "<<*groups.second<<"\n";
     return (r >= ratios.first && r <= ratios.second);
 }
 
@@ -200,8 +200,6 @@ std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,
     std::pair<int*,int*>groups,ties *tie){
     float r1 = (float) (*groups.first - 1) / (*groups.first + *groups.second); // if move cell in partition1 to 2
     float r2 = (float) (*groups.first + 1) / (*groups.first + *groups.second); // if move cell in partition2 to 1
-
-    std::cout<<"r1 :"<<r1<<" r2 "<<r2<<"\n";
 
     Bucket *b1 = buckets.first;
     Bucket *b2 = buckets.second;

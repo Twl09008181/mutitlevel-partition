@@ -64,8 +64,8 @@ struct Bucket{
 std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie = nullptr);
 
-void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2);
+void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2,ties*tie = nullptr);
 
-
+int CutSize(std::list<Net*>&net);
 
 #endif

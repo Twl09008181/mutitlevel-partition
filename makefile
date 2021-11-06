@@ -2,7 +2,7 @@
 
 CXX = g++
 CXXFALG = -std=c++11 -g 
-CPPFLAGS = -D DEBUG
+# CPPFLAGS = -D DEBUG
 
 
 obj = src/FM.o

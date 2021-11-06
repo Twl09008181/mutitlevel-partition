@@ -60,17 +60,17 @@ int main(int argc,char*argv[]){
 
     InitNets(cellVec,netList);
     std::cout<<"original cutsize:"<<CutSize(netList)<<"\n";
-    // #ifdef DEBUG
-        for(auto net:netList){
-            std::cout<<"Net:"<<net->NetId<<"\n";
-            std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
-            for(auto cell:net->cells)
-            {
-                std::cout<<dict[cellVec.at(cell).id]<<" ";
-            }
-            std::cout<<"\n";
-        }
-    // #endif
+    // // #ifdef DEBUG
+    //     for(auto net:netList){
+    //         std::cout<<"Net:"<<net->NetId<<"\n";
+    //         std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
+    //         for(auto cell:net->cells)
+    //         {
+    //             std::cout<<dict[cellVec.at(cell).id]<<" ";
+    //         }
+    //         std::cout<<"\n";
+    //     }
+    // // #endif
 
 
     #ifdef DEBUG
