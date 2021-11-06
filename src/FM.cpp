@@ -190,6 +190,8 @@ void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&bucket
 
 inline bool ratioPrecheck(const std::pair<float,float>&ratios,const std::pair<int*,int*>&groups){
     float r = (float) (*groups.first) / (*groups.first + *groups.second);
+
+    std::cout<<"gp1:"<<*groups.first<<" gp2: "<<*groups.second<<"\n";
     return (r >= ratios.first && r <= ratios.second);
 }
 
@@ -198,6 +200,9 @@ std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,
     std::pair<int*,int*>groups,ties *tie){
     float r1 = (float) (*groups.first - 1) / (*groups.first + *groups.second); // if move cell in partition1 to 2
     float r2 = (float) (*groups.first + 1) / (*groups.first + *groups.second); // if move cell in partition2 to 1
+
+    std::cout<<"r1 :"<<r1<<" r2 "<<r2<<"\n";
+
     Bucket *b1 = buckets.first;
     Bucket *b2 = buckets.second;
     auto c1 = b1->front(tie);//<id,gain>
@@ -205,6 +210,9 @@ std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,
     if(c1.first==-1 && c2.first==-1){return {{-1,0},{-1,0}};}
     if(c1.first==-1 && r2 > ratios.second){return {{-1,1},{-1,1}};} //只能動c2,但partition 1 已經太大
     if(c2.first==-1 && r1  < ratios.first){return {{-1,2},{-1,2}};}//只能動c1,但partition 1 已經太小
+    if(r1 < ratios.first && r2 > ratios.second)return {{-1,3},{-1,3}};
+    
+
     int gain1 = (c1.first!=-1 && r1 >= ratios.first) ? c1.second : -INT_MAX;
     int gain2 = (c2.first!=-1 && r2 <= ratios.second) ? c2.second : -INT_MAX;
     return {{c1.first,gain1},{c2.first,gain2}};
@@ -285,7 +293,7 @@ void RecoverToStage(std::vector<Cell>&cellVec,std::vector<int>&moveRecord,int be
 }
 
 
-void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
+void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2,ties*tie)
 {
     int g1Num = group1Num(cellVec);
     int g2Num = cellVec.size() - g1Num;
@@ -298,7 +306,7 @@ void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
         initGainBucket(cellVec,b1,b2);
         int k = 0,gain = 0;
         for(; k < cellVec.size() ; k++){
-            auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num},alphabetical_order);
+            auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num},tie);
             if(pass.first == -1)break; // no cell can move.
             gain += pass.second;
             gainAcc.at(k) = gain;
@@ -310,6 +318,15 @@ void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
         maxGain = gainAcc.at(bestIteration);
         // Recover state to bestIteration.
         RecoverToStage(cellVec,moveRecord,bestIteration,k,g1Num,g2Num);
-    }while(maxGain <= 0);
+        std::cout<<"maxGain:"<<maxGain<<"\n";
+    }while(maxGain > 0);
 
+}
+int CutSize(std::list<Net*>&net){
+    int cut = 0;
+    for(auto n:net){
+        if(n->group1&&n->group2)
+            cut++;
+    }
+    return cut;
 }

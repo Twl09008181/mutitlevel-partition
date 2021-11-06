@@ -10,6 +10,7 @@
 
 std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &filename);
 void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition);
+void InitialPartition_avg(std::vector<Cell>&cellVec);
 void InitNets(std::vector<Cell>&cellVec);
 //group cells
 
@@ -39,25 +40,27 @@ int main(int argc,char*argv[]){
 
     //init net
 
-    //using slide p31
-    //[a b c d e f g h 
-    //[1,0,1,1,0,0,1,0]
-    std::vector<bool>partition{1,0,1,1,0,0,1,0};
-    InitialPartition(cellVec,partition);         //這邊要想辦法做一個初始的partition
-     
-
 
     #ifdef DEBUG
-        for(auto &cell:cellVec)
-        {
-            std::string gp = cell.group1 ? "group1" : "group2";
-            std::cout<<dict[cell.id]<<" is " << gp <<"\n";
-        }
+        //using slide p31
+        //[a b c d e f g h 
+        //[1,0,1,1,0,0,1,0]
+        std::vector<bool>partition{1,0,1,1,0,0,1,0};
+        InitialPartition(cellVec,partition);         //這邊要想辦法做一個初始的partition
+            for(auto &cell:cellVec)
+            {
+                std::string gp = cell.group1 ? "group1" : "group2";
+                std::cout<<dict[cell.id]<<" is " << gp <<"\n";
+            }
+    #endif
+
+    #ifndef DEBUG
+    InitialPartition_avg(cellVec);
     #endif
 
     InitNets(cellVec,netList);
-    
-    #ifdef DEBUG
+    std::cout<<"original cutsize:"<<CutSize(netList)<<"\n";
+    // #ifdef DEBUG
         for(auto net:netList){
             std::cout<<"Net:"<<net->NetId<<"\n";
             std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
@@ -67,18 +70,18 @@ int main(int argc,char*argv[]){
             }
             std::cout<<"\n";
         }
-    #endif
+    // #endif
 
 
     #ifdef DEBUG
-    FM(cellVec,0.375,0.625);
+    FM(cellVec,0.375,0.625,alphabetical_order);
     #endif
 
     #ifndef DEBUG
     FM(cellVec,0.45,0.55);
     #endif
 
-    
+
 
     #ifdef DEBUG
         for(auto &cell:cellVec)
@@ -102,6 +105,8 @@ int main(int argc,char*argv[]){
         }
     #endif  
 
+
+    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
 
     for(auto net:netList)
         delete net;
@@ -168,3 +173,10 @@ void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition)
 
 }
 
+void InitialPartition_avg(std::vector<Cell>&cellVec){
+    bool group1 = true;
+    for(int i = 0;i<cellVec.size();i++){
+        cellVec.at(i).group1 = group1;
+        group1 = !group1;
+    }
+}
