@@ -10,9 +10,12 @@ extern std::map<int,char>dict;
 #endif
 
 
-// int alphabetical_order(std::list<int>&lst){
 
-// }
+
+
+
+
+
 
 
 void Bucket:: erase(Cell&cell){
@@ -21,14 +24,13 @@ void Bucket:: erase(Cell&cell){
         std::cerr<<"carefull,cell.freeze = true";
         return ;
     }
-
     auto &lst = gainVec.at(cell.gain + maxPin);
     lst.erase(cell.it);
     cell.freeze = true;
 }
 
 // return <id,gain>
-std::pair<int,int> Bucket::front(){
+std::pair<int,int> Bucket::front(ties *tie){
     auto &lst = gainVec.at(maxGain + maxPin);//if no rules for solving ties, return first
     if(maxGain==-maxPin && lst.empty())
         return {-1,-1};//no cell can move
@@ -36,7 +38,17 @@ std::pair<int,int> Bucket::front(){
         std::cerr<<"Bucket::front error, maxGain:"<<maxGain<<" but empty\n";
         exit(1);
     }
-    return {lst.front(),maxGain};
+    if(!tie)
+        return {lst.front(),maxGain};
+    else {
+        std::list<int>::iterator ptr = lst.begin();
+        int cellId = *ptr;
+        while(ptr!=lst.begin()){
+            cellId = tie(maxGain,maxGain,cellId,*ptr);
+            ++ptr;
+        }
+        return {cellId,maxGain};
+    }
 }
 
 void Bucket::pop_front(){
@@ -126,8 +138,7 @@ void update(std::vector<Cell>&cellVec,Net*net,std::pair<Bucket*,Bucket*>&buckets
     for(auto cellId:net->cells){
         Cell& cell = cellVec.at(cellId);
         if(cell.freeze){
-            if(updateOne)return;
-            else continue;
+            continue;
         }
         if(group1==cell.group1){//指定的group
             Bucket * b = nullptr;
@@ -180,7 +191,7 @@ void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&bucket
 //first : move id
 //second : gain
 std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
-    std::pair<float,float>ratios,std::pair<int*,int*>groups)
+    std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie)
 {
     //pre-check
     float r = (float) (*groups.first) / (*groups.first + *groups.second);
@@ -195,24 +206,30 @@ std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>b
     Bucket *b1 = buckets.first;
     Bucket *b2 = buckets.second;
 
-    auto c1 = b1->front();//<id,gain>
-    auto c2 = b2->front();
+    auto c1 = b1->front(tie);//<id,gain>
+    auto c2 = b2->front(tie);
     //can't move
     if(c1.first==-1 && c2.first==-1){return {-1,0};}
     if(c1.first==-1 && r2 > ratios.second){return {-1,1};} //只能動c2,但partition 1 已經太大
     if(c2.first==-1 && r1  < ratios.first){return {-1,2};}//只能動c1,但partition 1 已經太小
     int gain1 = (c1.first!=-1) ? c1.second : -INT_MAX;
     int gain2 = (c2.first!=-1) ? c2.second : -INT_MAX;
-    bool moveGp1 = (gain1 >= gain2);
+    
+    bool moveGp1 = gain1 >= gain2;
+    if(tie){
+        moveGp1 = tie(gain1,gain2,c1.first,c2.first)==c1.first;
+    }
     int gain,cellId;
     if(moveGp1){
-        b1->pop_front();gain = gain1;cellId = c1.first;
+        b1->erase(cellVec.at(c1.first));
+        gain = gain1;cellId = c1.first;
         move(cellVec,cellId,buckets);
         *groups.first -=1;
         *groups.second+=1;
     }
     else{
-        b2->pop_front();gain = gain2;cellId = c2.first;
+        b2->erase(cellVec.at(c2.first));
+        gain = gain2;cellId = c2.first;
         move(cellVec,cellId,buckets);
         *groups.first +=1;
         *groups.second-=1;
@@ -249,7 +266,7 @@ void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
     int s = 1;
     for(; i < s ; i++){
         std::cout<<"i:"<<i<<"\n";
-        auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num});
+        auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num},alphabetical_order);
         if(pass.first==-1)break;
         else{
             #ifdef DEBUG

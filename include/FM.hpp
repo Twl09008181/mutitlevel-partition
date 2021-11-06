@@ -43,17 +43,27 @@ inline std::pair<int,int> GroupNum(const Net& net,const Cell& cell){
     return cell.group1? std::pair<int,int>{net.group1,net.group2} : std::pair<int,int>{net.group2,net.group1};
 }
 
+inline int alphabetical_order(int gain1,int gain2,int id1,int id2){
+    if(gain1 > gain2)return id1;
+    if(gain1 < gain2)return id2;
+    return (id1 < id2) ? id1:id2;
+}
+
+using ties = decltype(alphabetical_order);
 
 struct Bucket{
     using CellId = int;//pesudo id.
     std::vector<std::list<CellId>>gainVec;
     int maxGain;   
     int maxPin;
-    std::pair<int,int> front();//return <max-gain cellID,gain>
+    std::pair<int,int> front(ties* tie = nullptr);//return <max-gain cellID,gain>
     void pop_front();
     void erase(Cell&cell);
     void push_front(Cell&cell);
 };
+
+std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
+    std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie = nullptr);
 
 void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2);
 
