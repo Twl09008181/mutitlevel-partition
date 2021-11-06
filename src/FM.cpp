@@ -238,68 +238,78 @@ std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>b
     }
 }
 
+int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int iterations){
+    int maxGain = gainAcc.at(0);
+    std::vector<int>candidates;candidates.push_back(0);
+    for(int i = 0;i < iterations;i++){
+        if(gainAcc.at(candidates.at(0)) < gainAcc.at(i)){ // new best
+            candidates.clear();
+            candidates.push_back(i);
+        }else if (gainAcc.at(candidates.at(0)) == gainAcc.at(i)){// add candidate
+            candidates.push_back(i);
+        }
+    }
+    //find most close to half .
+    float close_half = ratioRecord.at(candidates.at(0)) - 0.5;
+    if(close_half < 0) close_half *=-1;
+    int best = candidates.at(0);
+    for(auto c : candidates){
+        float diff_half = ratioRecord.at(c) - 0.5;
+        if(diff_half < 0)diff_half*=-1;
+        if(diff_half < close_half){
+            close_half = diff_half;
+            best = c;
+        }
+    }
+    return best;
+}
+
+
+void RecoverToStage(std::vector<Cell>&cellVec,std::vector<int>&moveRecord,int bestIteration,int totalIteration,int&g1Num,int&g2Num){
+    for(int k = totalIteration-1; k > bestIteration;k--){
+        int CellId = moveRecord.at(k);
+        auto &cell = cellVec.at(CellId);
+        if(cell.group1){//now in group1, recover to group2
+            g1Num--;g2Num++;
+            for(auto net:cell.nets){
+                net->group1--;net->group2++;
+            }
+        }else{
+            g1Num++;g2Num--;
+            for(auto net:cell.nets){
+                net->group1++;net->group2--;
+            }
+        }
+        cell.group1 = !cell.group1;
+    }
+}
+
+
 void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2)
 {
-
-
-    std::cout<<"fm\n";
-    // Init two gainBuckets
-    Bucket b1,b2;
-    std::cout<<"fm init \n";
-    initGainBucket(cellVec,b1,b2);
-    #ifdef DEBUG
-    std::cout<<"gainbucket1:\n";
-    showGainBucket(&b1,cellVec);
-    std::cout<<"gainbucket2:\n";
-    showGainBucket(&b2,cellVec);
-    #endif
-
     int g1Num = group1Num(cellVec);
     int g2Num = cellVec.size() - g1Num;
-
-
+    int maxGain;
     std::vector<int>gainAcc(cellVec.size(),-1);//accumulative gain 
     std::vector<int>moveRecord(cellVec.size(),-1);
-    int gain = 0;
-    int i = 0;
-    
-    int s = cellVec.size();
-    // int s = 1;
-    for(; i < s ; i++){
-        auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num},alphabetical_order);
-        if(pass.first==-1)break; // no cell can move.
-        else{
-            #ifdef DEBUG
-            std::cout<<"---------MOVE "<<dict[cellVec.at(pass.first).id]<<"\n";
-            #endif
-            #ifdef DEBUG
-            std::cout<<"gainbucket1:\n";
-            showGainBucket(&b1,cellVec);
-            std::cout<<"gainbucket2:\n";
-            showGainBucket(&b2,cellVec);
-            #endif
-
-            #ifndef DEBUG
-            std::cout<<"--------MOVE "<<cellVec.at(pass.first).id<<"\n";
-            #endif
+    std::vector<float>ratioRecord(cellVec.size(),-1);
+    do{
+        Bucket b1,b2;
+        initGainBucket(cellVec,b1,b2);
+        int k = 0,gain = 0;
+        for(; k < cellVec.size() ; k++){
+            auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num},alphabetical_order);
+            if(pass.first == -1)break; // no cell can move.
+            gain += pass.second;
+            gainAcc.at(k) = gain;
+            moveRecord.at(k) = pass.first;
+            ratioRecord.at(k) = (float) (g1Num) / (g1Num + g2Num);
         }
-        gain+=pass.second;
-        gainAcc.at(i) = gain;
-        moveRecord.at(i) = pass.first;
-    }
-    std::cout<<"fm end \n";
-
-    for(int i = 0;i<gainAcc.size();i++)
-    {
-        if(gainAcc.at(i)!=-1)
-        {
-            std::cout<<i<<" "<<dict[cellVec.at(moveRecord.at(i)).id]<<" "<<gainAcc.at(i)<<"\n";
-        }
-    }
-
-
-    //pick max i step...... 
-    //需要紀錄哪些被移動了......
-    //做Recover 後重新產生gainbucket
+        // Pick best state 
+        int bestIteration = getBestStage(gainAcc,ratioRecord,k);
+        maxGain = gainAcc.at(bestIteration);
+        // Recover state to bestIteration.
+        RecoverToStage(cellVec,moveRecord,bestIteration,k,g1Num,g2Num);
+    }while(maxGain <= 0);
 
 }

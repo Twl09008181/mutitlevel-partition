@@ -78,6 +78,31 @@ int main(int argc,char*argv[]){
     FM(cellVec,0.45,0.55);
     #endif
 
+    
+
+    #ifdef DEBUG
+        for(auto &cell:cellVec)
+        {
+            std::string gp = cell.group1 ? "group1" : "group2";
+            std::cout<<dict[cell.id]<<" is " << gp <<"\n";
+        }
+    #endif
+
+   
+    
+    #ifdef DEBUG
+        for(auto net:netList){
+            std::cout<<"Net:"<<net->NetId<<"\n";
+            std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
+            for(auto cell:net->cells)
+            {
+                std::cout<<dict[cellVec.at(cell).id]<<" ";
+            }
+            std::cout<<"\n";
+        }
+    #endif  
+
+
     for(auto net:netList)
         delete net;
     return 0;
