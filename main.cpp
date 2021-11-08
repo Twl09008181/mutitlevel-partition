@@ -11,6 +11,7 @@
 std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &filename);
 void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition);
 void InitialPartition_avg(std::vector<Cell>&cellVec);
+void InitialPartition_all1(std::vector<Cell>&cellVec);
 void Output(std::vector<Cell>&cellVec);
 //group cells
 
@@ -45,7 +46,9 @@ int main(int argc,char*argv[]){
         //using slide p31
         //[a b c d e f g h 
         //[1,0,1,1,0,0,1,0]
-        std::vector<bool>partition{1,0,1,1,0,0,1,0};
+        // std::vector<bool>partition{1,0,1,1,0,0,1,0};
+
+        std::vector<bool>partition{1,1,1,1,1,1,1,1};
         InitialPartition(cellVec,partition);         //這邊要想辦法做一個初始的partition
             for(auto &cell:cellVec)
             {
@@ -55,7 +58,8 @@ int main(int argc,char*argv[]){
     #endif
 
     #ifndef DEBUG
-    InitialPartition_avg(cellVec);
+    // InitialPartition_avg(cellVec);
+    InitialPartition_all1(cellVec);
     #endif
 
     InitNets(cellVec,netList);
@@ -79,6 +83,7 @@ int main(int argc,char*argv[]){
 
     #ifndef DEBUG
     FM(cellVec,0.45,0.55);
+    // FM(cellVec,0.4,0.6);
     #endif
 
 
@@ -180,7 +185,10 @@ void InitialPartition_avg(std::vector<Cell>&cellVec){
         group1 = !group1;
     }
 }
-
+void InitialPartition_all1(std::vector<Cell>&cellVec){
+    for(int i = 0;i<cellVec.size();i++)
+        cellVec.at(i).group1 = true;
+}
 void Output(std::vector<Cell>&cellVec){
     std::ofstream out{"output.txt"};
     for(auto c:cellVec)

@@ -196,8 +196,9 @@ inline bool ratioPrecheck(const std::pair<float,float>&ratios,const std::pair<in
 }
 
 
-std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,Bucket*>buckets,std::pair<float,float>ratios,\
+std::pair<std::pair<int,int>,std::pair<int,int>> validStatePick(std::pair<Bucket*,Bucket*>buckets,std::pair<float,float>ratios,\
     std::pair<int*,int*>groups,ties *tie){
+
     float r1 = (float) (*groups.first - 1) / (*groups.first + *groups.second); // if move cell in partition1 to 2
     float r2 = (float) (*groups.first + 1) / (*groups.first + *groups.second); // if move cell in partition2 to 1
 
@@ -216,15 +217,32 @@ std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,
     return {{c1.first,gain1},{c2.first,gain2}};
 }
 
+
+
+std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,Bucket*>buckets,std::pair<float,float>ratios,\
+    std::pair<int*,int*>groups,ties *tie){
+
+    float r =  (float) (*groups.first) / (*groups.first + *groups.second);//ratio now
+
+    // if this state is an invalid state.
+    if(r < ratios.first || r > ratios.second) {
+        Bucket *b = (r < ratios.first) ? buckets.second : buckets.first;
+        auto c = b->front(tie); //recommend size 到時候新增,但為了簡單 只檢查一個range的gain max 滿足該size的
+        if(c.first==-1){return {{-1,4},{-1,4}};}
+        if(r < ratios.first)
+            return {{-1,-INT_MAX},{c.first,c.second}} ;
+        else 
+            return {{c.first,c.second},{-1,-INT_MAX}};;
+    }   
+
+    // valid state
+    return validStatePick(buckets,ratios,groups,tie);
+}
+
 //first : move id
 //second : gain
 std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie){
-    //pre-check current ratio
-    if(!ratioPrecheck(ratios,groups)){
-        std::cerr<<"error in onePass, error ratio state! , you must have any  valid init solution.\n";
-        exit(1);
-    }
     auto candidates = getCandidate(buckets,ratios,groups,tie);// get
     if(candidates.first.first==-1 && candidates.second.first==-1)return candidates.first;// no cell can move
 
@@ -244,14 +262,20 @@ std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>b
     }
 }
 
-int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int iterations){
+int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int iterations,std::pair<float,float>ratios){
     int maxGain = gainAcc.at(0);
-    std::vector<int>candidates;candidates.push_back(0);
+    auto validRatio = [&ratioRecord,&ratios](int i){return ratioRecord.at(i) >= ratios.first && ratioRecord.at(i) <= ratios.second;};
+    std::vector<int>candidates;
+
+    int bestGain = -INT_MAX;
     for(int i = 0;i < iterations;i++){
-        if(gainAcc.at(candidates.at(0)) < gainAcc.at(i)){ // new best
+        if(!validRatio(i))continue;//not valid ratio
+
+        if(bestGain < gainAcc.at(i)){ // new best
             candidates.clear();
             candidates.push_back(i);
-        }else if (gainAcc.at(candidates.at(0)) == gainAcc.at(i)){// add candidate
+            bestGain  = gainAcc.at(i);
+        }else if (bestGain == gainAcc.at(i)){// add candidate
             candidates.push_back(i);
         }
     }
@@ -293,12 +317,22 @@ void RecoverToStage(std::vector<Cell>&cellVec,std::vector<int>&moveRecord,int be
 
 void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2,ties*tie)
 {
+    int totalNum = cellVec.size();
+
+    int half1 = totalNum - totalNum/2;
+    if(float(half1)/totalNum < ratio1 || float(half1)/totalNum > ratio2){
+        std::cerr<<"your cell size can never reach the request ratio,please enter new ratio constraint.\n";
+        exit(1);
+    }
+
+
     int g1Num = group1Num(cellVec);
     int g2Num = cellVec.size() - g1Num;
     int maxGain;
     std::vector<int>gainAcc(cellVec.size(),-1);//accumulative gain 
     std::vector<int>moveRecord(cellVec.size(),-1);
     std::vector<float>ratioRecord(cellVec.size(),-1);
+
     do{
         Bucket b1,b2;
         initGainBucket(cellVec,b1,b2);
@@ -312,11 +346,10 @@ void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2,ties*tie)
             ratioRecord.at(k) = (float) (g1Num) / (g1Num + g2Num);
         }
         // Pick best state 
-        int bestIteration = getBestStage(gainAcc,ratioRecord,k);
+        int bestIteration = getBestStage(gainAcc,ratioRecord,k,{ratio1,ratio2});
         maxGain = gainAcc.at(bestIteration);
         // Recover state to bestIteration.
         RecoverToStage(cellVec,moveRecord,bestIteration,k,g1Num,g2Num);
-        std::cout<<"maxGain:"<<maxGain<<"\n";
     }while(maxGain > 0);
 
 }
