@@ -10,16 +10,12 @@
 
 std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &filename);
 void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition);
-void InitialPartition_avg(std::vector<Cell>&cellVec);
+void InitialPartition_avg(std::vector<Cell*>&cellVec);
 void InitialPartition_all1(std::vector<Cell>&cellVec);
 void Output(std::vector<Cell>&cellVec);
 //group cells
 
 
-
-std::map<int,char>dict{
-    {1,'a'},{2,'b'},{3,'c'},{4,'d'},{5,'e'},{6,'f'},{7,'g'},{8,'h'} 
-};
 
 
 int main(int argc,char*argv[]){
@@ -30,91 +26,35 @@ int main(int argc,char*argv[]){
         exit(1);
     }
 
-    
-    auto info = parser(argv[1]);//get unsorted cellVec
-
-    auto cellVec = info.first;
-    auto netList = info.second;
-
-    std::sort(cellVec.begin(),cellVec.end(),[](Cell&c1,Cell&c2){return c1.id < c2.id;});//sorted by cellId
-    for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId).sortId = sortId;}//store sortId 
-
-    //init net
-
-
-    #ifdef DEBUG
-        //using slide p31
-        //[a b c d e f g h 
-        //[1,0,1,1,0,0,1,0]
-        // std::vector<bool>partition{1,0,1,1,0,0,1,0};
-
-        std::vector<bool>partition{1,1,1,1,1,1,1,1};
-        InitialPartition(cellVec,partition);         //這邊要想辦法做一個初始的partition
-            for(auto &cell:cellVec)
-            {
-                std::string gp = cell.group1 ? "group1" : "group2";
-                std::cout<<dict[cell.id]<<" is " << gp <<"\n";
-            }
-    #endif
-
-    #ifndef DEBUG
-    // InitialPartition_avg(cellVec);
-    InitialPartition_all1(cellVec);
-    #endif
-
-    InitNets(cellVec,netList);
-    std::cout<<"original cutsize:"<<CutSize(netList)<<"\n";
-    // // #ifdef DEBUG
-    //     for(auto net:netList){
-    //         std::cout<<"Net:"<<net->NetId<<"\n";
-    //         std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
-    //         for(auto cell:net->cells)
-    //         {
-    //             std::cout<<dict[cellVec.at(cell).id]<<" ";
-    //         }
-    //         std::cout<<"\n";
-    //     }
-    // // #endif
-
-
-    #ifdef DEBUG
-    FM(cellVec,0.375,0.625,alphabetical_order);
-    #endif
-
-    #ifndef DEBUG
-    FM(cellVec,0.45,0.55);
-    // FM(cellVec,0.4,0.6);
-    #endif
-
-
-
-    #ifdef DEBUG
-        for(auto &cell:cellVec)
-        {
-            std::string gp = cell.group1 ? "group1" : "group2";
-            std::cout<<dict[cell.id]<<" is " << gp <<"\n";
-        }
-    #endif
-
    
+
     
-    #ifdef DEBUG
-        for(auto net:netList){
-            std::cout<<"Net:"<<net->NetId<<"\n";
-            std::cout<<"gp1 num:"<<net->group1<<" gp2 num:"<<net->group2<<"\n";
-            for(auto cell:net->cells)
-            {
-                std::cout<<dict[cellVec.at(cell).id]<<" ";
-            }
-            std::cout<<"\n";
-        }
-    #endif  
+    // auto info = parser(argv[1]);//get unsorted cellVec
+
+    // auto cellVec = info.first;
+    // auto netList = info.second;
+
+    // std::sort(cellVec.begin(),cellVec.end(),[](Cell&c1,Cell&c2){return c1.id < c2.id;});//sorted by cellId
+    // for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId).sortId = sortId;}//store sortId 
+
+    // //init net
+
+    // InitialPartition_all1(cellVec);
+   
+
+    // InitNets(cellVec,netList);
 
 
-    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    Output(cellVec);
-    for(auto net:netList)
-        delete net;
+
+    // FM(cellVec,0.45,0.55);
+
+
+
+
+    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    // Output(cellVec);
+    // for(auto net:netList)
+    //     delete net;
     return 0;
 }
 

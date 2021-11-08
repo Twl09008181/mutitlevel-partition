@@ -176,11 +176,11 @@ void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&bucket
             update(cellVec,net,&cell,buckets,from_group,true,true);//increment "from group" cell's gain. 
         //update net's group num.
         if(cell.group1){
-            net->group1--;
-            net->group2++;
+            net->group1 -= cell.getSize();
+            net->group2 += cell.getSize();
         }else{
-            net->group1++;
-            net->group2--;
+            net->group1 += cell.getSize();
+            net->group2 -= cell.getSize();
         }
     }
     //really move
@@ -251,13 +251,13 @@ std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>b
     bool moveGp1 = tie ? (tie(gain1,gain2,c1,c2) == c1): (gain1 >= gain2); // choose cell to move
     if(moveGp1){
         move(cellVec,c1,buckets);
-        *groups.first -=1;
-        *groups.second+=1;
+        *groups.first  -= cellVec.at(c1).getSize();
+        *groups.second += cellVec.at(c1).getSize();
         return {c1,gain1};
     }else{
         move(cellVec,c2,buckets);
-        *groups.first +=1;
-        *groups.second-=1;
+        *groups.first  += cellVec.at(c2).getSize();
+        *groups.second -= cellVec.at(c2).getSize();
         return {c2,gain2};
     }
 }

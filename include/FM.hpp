@@ -4,7 +4,8 @@
 #include <list>
 #include <utility>
 #include <vector>
-
+#include <set>
+#include <iostream>
 struct Net{
 
     Net(int id)
@@ -23,11 +24,13 @@ struct Cell{
     bool group1;
     std::list<Net*>nets;
     int netNum = 0;
-    void addNet(Net*net){nets.push_front(net);netNum++;}
+    virtual void addNet(Net*net){nets.push_front(net);netNum++;}
 
     int gain = 0;
     bool freeze = true;
     std::list<int>::iterator it;//to access gain bucket.
+
+    virtual int getSize(){return 1;}
 };//using std::vector<Cell> to save all Cells.   
 
 //First step is to build CellArray (sorted by id),and save sortId.
@@ -35,6 +38,28 @@ struct Cell{
 //set nets
 
 //Second step is to init the Net objects, saving pesudo id and group1,group2 by scan all cells.
+
+
+
+using netInfo = std::pair<Net*,std::list<int>::iterator>;
+struct netCmp {
+    bool operator()(const netInfo& lhs, const netInfo& rhs) const { 
+        return lhs.first->NetId < rhs.first->NetId;
+    }
+};
+
+class cluster : public Cell{
+public:
+    std::vector<Cell*>cells;
+    std::set<netInfo,netCmp>nets;
+    void clustering(cluster&v);
+    void decluster();
+    int getSize(){return cells.size();}
+    void addNet(Net*net){std::cout<<"cluster doesn't support addNet\n";}//do nothing
+};
+
+
+
 
 void InitNets(std::vector<Cell>&cellVec,std::list<Net*>&nets);
 
