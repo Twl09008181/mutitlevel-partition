@@ -41,27 +41,19 @@ struct Cell{
     virtual int getSize()const{return 1;}  //bug 1 ........................
 };//using std::vector<Cell> to save all Cells.   
 
-//First step is to build CellArray (sorted by id),and save sortId.
-//need set group1 flag by any way.
-//set nets
-
-//Second step is to init the Net objects, saving pesudo id and group1,group2 by scan all cells.
 
 
 
+//a specialed cell , can be used in coarsening and uncoarsening
 class Cluster : public Cell{
 public:
-    Cluster(int realid)
-    {
+    Cluster(int realid){
         id = realid;
-        sortId = -1;
-
         // cluster relative
         cells.push_front(this);
         valid = true;
         iscluster = false;
-        clusterId = -1;
-
+        clusterId = sortId = -1;
         cellsNum = 1;
     }
     void setSortId(int sortedId){
@@ -77,7 +69,7 @@ public:
     std::list<Cluster*>cells;//紀錄存了哪些cell,decluster需要
     int originNetNum = 0;//decluster時會用到
 
-    int cellsNum;
+    int cellsNum;//maintain for quickly get size.
 
     bool is_cluster(){return iscluster;}//only one cell.
     // update cluster member
@@ -92,10 +84,8 @@ public:
 
 
     // inherint functions
-    // int getSize()const{return cellsNum;}
-    int getSize()const{
-        return cells.size();
-    }
+    int getSize()const{return cellsNum;}
+    
     bool isValid(){
         if(is_master()&&!valid){std::cerr<<"isValid warning, a cluster ,master is always valid,you may need to check if you have already call BuildClustersNets\n";}
         return valid;

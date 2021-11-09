@@ -132,10 +132,6 @@ inline int group1Num(std::vector<Cluster*>&cellVec){
 
 void Net::addCells(Cell*cell){
     cells.push_front(cell->sortId);
-    // if(cell->sortId==0)
-    // {
-    //     std::cout<<"0 : size "<<cell->getSize()<<"\n";
-    // }
     cell->group1 ? (group1+=cell->getSize()) : (group2+=cell->getSize());
 }
 void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets){
@@ -145,8 +141,9 @@ void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets){
         n->cells.clear();
     }
     // build connect
+    // only contain Valid cell.
     for(auto cell : cellVec){
-        if(cell->isValid()&&cell->is_master()){
+        if(cell->isValid()){
             for(auto net : cell->getNetlist())
                 net->addCells(cell);
         }
@@ -156,9 +153,8 @@ void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets){
 // update cells in same netlist of moving cell.
 void update(std::vector<Cluster*>&cellVec,Net*net,Cell*movingcell,std::pair<Bucket*,Bucket*>&buckets,bool group1,bool increment,bool onlyOne){
     for(auto cellId:net->cells){
-        Cell* cell = cellVec.at(cellId);// get cell   
-        if(cell==movingcell || !cell->isValid())continue;     
-        if(group1 == cell->group1){ // the specified group.
+        Cell* cell = cellVec.at(cellId);// get cell        
+        if(cell != movingcell && group1 == cell->group1){ // the specified group.
             if(cell->freeze){
                 if(onlyOne)break;
                 else continue;
@@ -214,7 +210,7 @@ std::pair<std::pair<int,int>,std::pair<int,int>> validStatePick(std::pair<Bucket
     float r1 = (float) (*groups.first - minSize) / (*groups.first + *groups.second); // if move cell in partition1 to 2
     float r2 = (float) (*groups.first + minSize) / (*groups.first + *groups.second); // if move cell in partition2 to 1
 
-
+    //future feature.
     //Size limit suggest, this is not necessary, because we have the decluster method.
     // but maybe it can help
     Bucket *b1 = buckets.first;
@@ -227,12 +223,6 @@ std::pair<std::pair<int,int>,std::pair<int,int>> validStatePick(std::pair<Bucket
     if(c1.first==-1 && r2 > ratios.second){return {{-1,1},{-1,1}};} //只能動c2,但partition 1 已經太大
     if(c2.first==-1 && r1  < ratios.first){return {{-1,2},{-1,2}};}//只能動c1,但partition 1 已經太小
     if(r1 < ratios.first && r2 > ratios.second)return {{-1,3},{-1,3}};
-    
-
-
-
-    
-    
 
     int gain1 = (c1.first!=-1 && r1 >= ratios.first) ? c1.second : -INT_MAX;
     int gain2 = (c2.first!=-1 && r2 <= ratios.second) ? c2.second : -INT_MAX;
@@ -265,7 +255,7 @@ std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,
 
 //first : move id
 //second : gain
-std::pair<int,int> onePass(std::vector<Cluster*>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
+std::pair<int,int> oneMove(std::vector<Cluster*>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie){
     auto candidates = getCandidate(buckets,ratios,groups,tie);// get
     if(candidates.first.first==-1 && candidates.second.first==-1)return candidates.first;// no cell can move
@@ -296,11 +286,9 @@ int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int ite
     
     auto validRatio = [&ratioRecord,&ratios](int i){return ratioRecord.at(i) >= ratios.first && ratioRecord.at(i) <= ratios.second;};
     std::vector<int>candidates;
-
-
-
+    
     int bestGain = -INT_MAX;
-    for(int i = 1;i < iterations;i++){
+    for(int i = 1;i <= iterations;i++){                 //only compare 1 to iteration , not 0.
         if(!validRatio(i))continue;//not valid ratio
 
         if(bestGain < gainAcc.at(i)){ // new best
@@ -312,7 +300,7 @@ int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int ite
         }
     }
 
-    if(candidates.size()==0)return 0; // all ratio are invalid.
+    if(candidates.size()==0)return 0; // all ratio are invalid,recover.
     
     //find most close to half .
     float close_half = ratioRecord.at(candidates.at(0)) - 0.5;
@@ -331,7 +319,7 @@ int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int ite
 
 
 void RecoverToStage(std::vector<Cluster*>&cellVec,std::vector<int>&moveRecord,int bestIteration,int totalIteration,int&g1Num,int&g2Num){
-    for(int k = totalIteration-1; k > bestIteration;k--){
+    for(int k = totalIteration; k > bestIteration;k--){
         int CellId = moveRecord.at(k);
         auto &cell = *cellVec.at(CellId);
         int size = cell.getSize();
@@ -368,75 +356,92 @@ std::vector<int>get_clusterID(ClusterQ &q,int size ){
         clusterIds.push_back(q.top()->clusterId);
     return clusterIds;
 }
-void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie)
+
+void preCheckConstraint(int totalNum,float ratio1,float ratio2)
 {
-    // pre-check ratio constraints.
-    int totalNum = cellVec.size();
     int half1 = totalNum - totalNum/2;
     if(float(half1)/totalNum < ratio1 || float(half1)/totalNum > ratio2){
         std::cerr<<"your cell size can never reach the request ratio,please enter new ratio constraint.\n";
         exit(1);
     }
+}
 
-    //allocate info
-    int g1Num = group1Num(cellVec);
-    int g2Num = cellVec.size() - g1Num;
-    int maxGain;
+
+struct OnepassArgs{
+    std::vector<int>*GainAcc;
+    std::vector<int>*MoveRecord;
+    std::vector<float>*RatioRecord;
+
+    std::vector<Cluster*>*CellVec;
+    std::pair<Bucket*,Bucket*>buckets;
+    std::pair<float,float>ratios;
+    std::pair<int*,int*>groups;
+};
+
+
+// //return iteration
+int OnePass(const OnepassArgs&args,ties *tie){
+    int k = 1,gain = 0;
+    for(; k <= args.CellVec->size() ; k++){
+        auto pass = oneMove(*args.CellVec,args.buckets,args.ratios,args.groups,tie);
+        if(pass.first == -1)break; // no cell can move.
+        gain += pass.second;
+        args.GainAcc->at(k) = gain;
+        args.MoveRecord->at(k) = pass.first;
+        args.RatioRecord->at(k) = (float) (*args.groups.first) / (*args.groups.first + *args.groups.second);
+    }
+    return k - 1;
+}
+
+//return true if decluster happen.
+bool Decluster(ClusterQ&q,std::vector<Cluster*>&cellVec,std::list<Net*>&netlist,int size){
+    auto clusterIds = get_clusterID(q,size);
+    if(!clusterIds.empty()){
+        for(auto clst:clusterIds){
+            std::cout<<"dclust:"<<clst<<"\n";
+            cellVec.at(clst)->decluster();
+        }
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie){
+    // pre-check ratio constraints.
+    int totalNum = cellVec.size();
+    preCheckConstraint(totalNum,ratio1,ratio2);
+
+    //allocate information Recored, idx start from 1 .
     std::vector<int>gainAcc(cellVec.size() + 1,-1);//accumulative gain 
     std::vector<int>moveRecord(cellVec.size() + 1,-1);
     std::vector<float>ratioRecord(cellVec.size() + 1,-1);
+    // maintain groupNumber information for caculating ratio
+    int g1Num = group1Num(cellVec),g2Num = cellVec.size() - g1Num;
 
     //clustering Queue
     auto clustersQ = getClusterQ(cellVec);
     bool canDecluster;
     int deClusterNum = totalNum/5;
 
-    int time=0;
+    int maxGain;
     do{
         Bucket b1,b2;
-      
+        // init GainBucket every iteration.
         initGainBucket(cellVec,b1,b2);
-        int k = 1,gain = 0;
-        for(; k <= cellVec.size() ; k++){
-            auto pass = onePass(cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num},tie);
-            if(pass.first == -1)break; // no cell can move.
-            gain += pass.second;
-            gainAcc.at(k) = gain;
-            moveRecord.at(k) = pass.first;
-            ratioRecord.at(k) = (float) (g1Num) / (g1Num + g2Num);
-        }
-      
-  
+
+        gainAcc.at(0) = 0;
+        // OnePass
+        int totalIteration = OnePass(OnepassArgs{&gainAcc,&moveRecord,&ratioRecord,&cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num}},tie);
+
         // Pick best state 
-        int bestIteration = getBestStage(gainAcc,ratioRecord,k,{ratio1,ratio2});
+        int bestIteration = getBestStage(gainAcc,ratioRecord,totalIteration,{ratio1,ratio2});
+        maxGain = gainAcc.at(bestIteration);
 
-        if(bestIteration){
-            maxGain = gainAcc.at(bestIteration);
-            std::cout<<"choose move to k = " <<bestIteration<<" , total gain:"<<maxGain<<"\n"; 
-        }
-        else {
-            std::cout<<"recover \n";
-            maxGain = 0;
-        }
-    
         // Recover state to bestIteration.
-        RecoverToStage(cellVec,moveRecord,bestIteration,k,g1Num,g2Num);
-      
-        canDecluster = false;
-        if(maxGain==0){
-            auto clusterIds = get_clusterID(clustersQ,deClusterNum);
-            canDecluster = !clusterIds.empty();
-
-            for(auto clst:clusterIds){
-                std::cout<<"dclust:"<<clst<<"\n";
-                auto c = cellVec.at(clst);
-                c->decluster();
-            }
-            if(canDecluster)
-            InitNets(cellVec,netlist); // every time decluster,need INitNets.
-        }
-    time++;
-    }while(time < 10||maxGain > 0 || canDecluster);
+        RecoverToStage(cellVec,moveRecord,bestIteration,totalIteration,g1Num,g2Num);
+    }while(maxGain != 0 || Decluster(clustersQ,cellVec,netlist,deClusterNum));
 
 }
 int CutSize(std::list<Net*>&net){
