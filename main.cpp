@@ -8,15 +8,22 @@
 #include <algorithm>
 #include <map>
 
-std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &filename);
-void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition);
-void InitialPartition_avg(std::vector<Cell*>&cellVec);
-void InitialPartition_all1(std::vector<Cell>&cellVec);
-void Output(std::vector<Cell>&cellVec);
+// std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &filename);
+// void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition);
+// void InitialPartition_avg(std::vector<Cell*>&cellVec);
+// void InitialPartition_all1(std::vector<Cell>&cellVec);
+// void Output(std::vector<Cell>&cellVec);
 //group cells
 
 
 
+std::pair<std::vector<Cluster>,std::list<Net*>> parser(const std::string &filename);
+// void InitialPartition(std::vector<Cluster>&cellVec,std::vector<bool>&partition);
+// void InitialPartition_avg(std::vector<Cluster*>&cellVec);
+void InitialPartition_all1(std::vector<Cluster>&cellVec);
+void Output(std::vector<Cluster>&cellVec);
+
+void showNet(Net*net);
 
 int main(int argc,char*argv[]){
 
@@ -29,22 +36,22 @@ int main(int argc,char*argv[]){
    
 
     
-    // auto info = parser(argv[1]);//get unsorted cellVec
+    auto info = parser(argv[1]);//get unsorted cellVec
 
-    // auto cellVec = info.first;
-    // auto netList = info.second;
+    auto cellVec = info.first;
+    auto netList = info.second;
 
-    // std::sort(cellVec.begin(),cellVec.end(),[](Cell&c1,Cell&c2){return c1.id < c2.id;});//sorted by cellId
-    // for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId).sortId = sortId;}//store sortId 
+    std::sort(cellVec.begin(),cellVec.end(),[](Cell&c1,Cell&c2){return c1.id < c2.id;});//sorted by cellId
+    for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId).sortId = sortId;}//store sortId 
 
-    // //init net
+    //init net
 
-    // InitialPartition_all1(cellVec);
-   
+    InitialPartition_all1(cellVec);
+    InitNets(cellVec,netList);
 
-    // InitNets(cellVec,netList);
+    for(auto net:netList){showNet(net);}
 
-
+    std::cout<<"done\n";
 
     // FM(cellVec,0.45,0.55);
 
@@ -55,10 +62,12 @@ int main(int argc,char*argv[]){
     // Output(cellVec);
     // for(auto net:netList)
     //     delete net;
+
+
     return 0;
 }
 
-std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &fileName){
+std::pair<std::vector<Cluster>,std::list<Net*>> parser(const std::string &fileName){
    std::ifstream input{fileName};
 
    if(!input){std::cerr<<"can't open"<<fileName<<"\n";} 
@@ -66,7 +75,7 @@ std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &fileName)
     int NetsNum,CellNum;
     input >> NetsNum >> CellNum;
 
-    std::vector<Cell>cells;cells.resize(CellNum);
+    std::vector<Cluster>cells;cells.reserve(CellNum);
     std::unordered_map<int,int>cellRecord;//<id,vec_pos>
 
     
@@ -89,14 +98,14 @@ std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &fileName)
         int id;
         while(ss >> id){
             auto cptr = cellRecord.find(id);
-            if(cptr == cellRecord.end())
-            {
-                int pos = cellRecord.size();
+            if(cptr == cellRecord.end()){
+                int pos = cells.size();
                 cellRecord.insert({id,pos});
-                cells.at(pos).id = id;
+            
+                //build cell
+                cells.push_back({id,pos});
                 cells.at(pos).addNet(net);
-            }
-            else{
+            }else{
                 int pos = cptr->second;
                 cells.at(pos).addNet(net);
             }
@@ -105,33 +114,43 @@ std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &fileName)
     input.close();   
     return {cells,nets}; 
 }
-void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition)
-{
-    if(cellVec.size()!=partition.size())
-    {
-        std::cerr<<"Initial partition size is uncompatible\n";
-        return ;
-    }
-    for(int i = 0;i<cellVec.size();i++){
-        cellVec.at(i).group1 = partition.at(i);
-    }
+// void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition)
+// {
+//     if(cellVec.size()!=partition.size())
+//     {
+//         std::cerr<<"Initial partition size is uncompatible\n";
+//         return ;
+//     }
+//     for(int i = 0;i<cellVec.size();i++){
+//         cellVec.at(i).group1 = partition.at(i);
+//     }
 
-}
+// }
 
-void InitialPartition_avg(std::vector<Cell>&cellVec){
-    bool group1 = true;
-    for(int i = 0;i<cellVec.size();i++){
-        cellVec.at(i).group1 = group1;
-        group1 = !group1;
-    }
-}
-void InitialPartition_all1(std::vector<Cell>&cellVec){
+// void InitialPartition_avg(std::vector<Cell>&cellVec){
+//     bool group1 = true;
+//     for(int i = 0;i<cellVec.size();i++){
+//         cellVec.at(i).group1 = group1;
+//         group1 = !group1;
+//     }
+// }
+
+void InitialPartition_all1(std::vector<Cluster>&cellVec){
     for(int i = 0;i<cellVec.size();i++)
         cellVec.at(i).group1 = true;
 }
-void Output(std::vector<Cell>&cellVec){
+void Output(std::vector<Cluster>&cellVec){
     std::ofstream out{"output.txt"};
     for(auto c:cellVec)
         out << c.group1 <<"\n";
     out.close();
+}
+void showNet(Net*net)
+{
+    std::cout<<"Net"<<net->NetId<<"\n";
+    std::cout<<"total cells:"<<net->cells.size()<<"\n";
+    std::cout<<"group1:"<<net->group1<<" group2 "<<net->group2<<"\n";
+    for(auto c:net->cells)
+        std::cout<<c<<" ";
+    std::cout<<"\n";
 }

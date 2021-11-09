@@ -6,6 +6,8 @@
 #include <vector>
 #include <set>
 #include <iostream>
+
+struct Cell;
 struct Net{
 
     Net(int id)
@@ -17,6 +19,7 @@ struct Net{
     //need maintain
     int group1 = 0;
     int group2 = 0;
+    void addCells(Cell*cell);
 };
 struct Cell{
     int id;//編號不一定會是從1~node的總數
@@ -26,6 +29,8 @@ struct Cell{
     int netNum = 0;
     virtual void addNet(Net*net){nets.push_front(net);netNum++;}
 
+
+    // bucket relative
     int gain = 0;
     bool freeze = true;
     std::list<int>::iterator it;//to access gain bucket.
@@ -41,27 +46,44 @@ struct Cell{
 
 
 
-using netInfo = std::pair<Net*,std::list<int>::iterator>;
-struct netCmp {
-    bool operator()(const netInfo& lhs, const netInfo& rhs) const { 
-        return lhs.first->NetId < rhs.first->NetId;
-    }
-};
-
-class cluster : public Cell{
+class Cluster : public Cell{
 public:
-    std::vector<Cell*>cells;
-    std::set<netInfo,netCmp>nets;
-    void clustering(cluster&v);
+    Cluster(int realid,int sortedId){
+        id = realid;
+        sortId = sortedId;
+        cells.push_front(sortId);
+        valid = true;
+        iscluster = false;
+    }
+    std::list<int>cells;
+    std::list<Net*>clustersNets;
+    int originNetNum = 0;
+
+    bool valid;//cluster or non-cluster single valid cell. 
+    bool iscluster;
+
+    bool is_cluster(){return iscluster;}//only one cell.
+    int clustering(Cluster&v);//return id
     void decluster();
     int getSize(){return cells.size();}
-    void addNet(Net*net){std::cout<<"cluster doesn't support addNet\n";}//do nothing
+    
+    std::list<Net*>& getNets(){
+        if(iscluster)return clustersNets;
+        else return nets;
+    }
+    void addNet(Net*net){
+        nets.push_front(net);
+        clustersNetSet.insert(net);
+        netNum++;
+    }
+private:
+    std::set<Net*>clustersNetSet;
+    void initClustersNets();// put nets in clustersNetSet into clustersNets
 };
 
 
 
-
-void InitNets(std::vector<Cell>&cellVec,std::list<Net*>&nets);
+void InitNets(std::vector<Cluster>&cellVec,std::list<Net*>&nets);
 
 // <from part,to part>
 inline std::pair<int,int> GroupNum(const Net& net,const Cell& cell){

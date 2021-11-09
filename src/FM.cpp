@@ -126,15 +126,21 @@ inline int group1Num(std::vector<Cell>&cellVec){
     return n;
 }
 
-
-void InitNets(std::vector<Cell>&cellVec,std::list<Net*>&nets){
-    for(auto n:nets)
+void Net::addCells(Cell*cell){
+    cells.push_front(cell->sortId);
+    cell->group1 ? (group1+=cell->getSize()) : (group2+=cell->getSize());
+}
+void InitNets(std::vector<Cluster>&cellVec,std::list<Net*>&nets){
+    // clear all
+    for(auto n:nets){
         n->group1 = n->group2 = 0;
+        n->cells.clear();
+    }
+    // build connect
     for(auto &cell : cellVec){
-        for(auto net : cell.nets){
-            net->cells.push_back(cell.sortId);
-            cell.group1 ? (net->group1++):(net->group2++);
-        }
+        if(cell.valid)
+        for(auto net : cell.nets)
+            net->addCells(&cell);
     }
 }
 
