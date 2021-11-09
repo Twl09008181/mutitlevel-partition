@@ -51,28 +51,19 @@ int main(int argc,char*argv[]){
     //after clustering, doing initial
     InitialPartition_all1(cellVec);
 
-
-  
-
-    //try simulated move
-    cellVec.at(id)->group1 = !cellVec.at(id)->group1;
-    cellVec.at(id)->decluster();
-    showCell(cellVec);
-
-
     //InitNets
-    // InitNets(cellVec,netList);
+    InitNets(cellVec,netList);
     // for(auto net:netList)showNet(net,cellVec);
 
 
+    std::cout<<"start Fm\n";
+    FM(cellVec,netList,0.45,0.55);
+    std::cout<<"end Fm\n";
 
-    // FM(cellVec,netList,0.45,0.55);
-
-
-    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    // Output(cellVec);
-    // for(auto net:netList)
-    //     delete net;
+    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    Output(cellVec);
+    for(auto net:netList)
+        delete net;
 
 
     return 0;
@@ -166,8 +157,8 @@ void showNet(Net*net,std::vector<Cluster*>&cellVec)
         auto cell = cellVec.at(c); 
         if(!cell->isValid())continue;
 
-        if(cell->is_cluster()){
-            std::cout<<c<<" is a cluster,cells : ";
+        if(cell->is_master()){
+            std::cout<<c<<" is a cluster master,cells : ";
             for(auto cells:cell->cells)
                 std::cout<<cells->sortId<<" ";
         }

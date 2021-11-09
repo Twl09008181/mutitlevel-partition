@@ -6,6 +6,7 @@
 #include <vector>
 #include <set>
 #include <iostream>
+#include <queue>
 
 struct Cell;
 struct Net{
@@ -88,9 +89,9 @@ public:
 
 
     // inherint functions
-    int getSize(){return cells.size();}
+    int getSize()const{return cells.size();}
     bool isValid(){
-        if(iscluster&&!valid){std::cerr<<"isValid warning, a cluster is always valid,you may need to check if you have already call BuildClustersNets\n";}
+        if(is_master()&&!valid){std::cerr<<"isValid warning, a cluster ,master is always valid,you may need to check if you have already call BuildClustersNets\n";}
         return valid;
     }
     void addNet(Net*net){
@@ -105,7 +106,13 @@ private:
     std::list<Net*>clustersNets;//FM需要整個Nets
 };
 
-
+struct clusterCmp
+{
+    bool operator()(const Cluster*c1,const Cluster*c2)const{
+        return c1->getSize() < c2->getSize();
+    }
+};
+std::priority_queue<Cluster*,std::vector<Cluster*>,clusterCmp> getClusterQ(std::vector<Cluster*>&);
 
 void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets);
 
@@ -132,10 +139,10 @@ struct Bucket{
     void push_front(Cell*cell);
 };
 
-std::pair<int,int> onePass(std::vector<Cluster>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
+std::pair<int,int> onePass(std::vector<Cluster*>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie = nullptr);
 
-void FM(std::vector<Cluster>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie = nullptr);
+void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie = nullptr);
 
 int CutSize(std::list<Net*>&net);
 
