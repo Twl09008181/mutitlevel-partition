@@ -58,33 +58,27 @@ public:
         valid = true;
         iscluster = false;
     }
-    std::list<int>cells;
-    std::list<Net*>clustersNets;
-    int originNetNum = 0;
+    std::list<int>cells;//紀錄存了哪些cell,decluster需要
+    std::list<Net*>clustersNets;//FM需要整個Nets
+    int originNetNum = 0;//不確定會不會用到
 
     bool valid;//cluster or non-cluster single valid cell. 
-    bool iscluster;
+    bool iscluster;//decluster後set false,cluster後 set true.
 
     bool is_cluster(){return iscluster;}//only one cell.
     int clustering(Cluster&v);//return id
     void decluster();
+
+
+    // inherint functions
     int getSize(){return cells.size();}
     bool isValid(){return valid;}
-    std::list<Net*>& getNets(){
-        if(iscluster)return clustersNets;
-        else return nets;
-    }
     void addNet(Net*net){
         nets.push_front(net);
         clustersNetSet.insert(net);
         netNum++;
     }
-    std::list<Net*>getNetlist(){
-        if(!iscluster)
-            return nets;
-        else 
-            return clustersNets;
-    }
+    std::list<Net*>getNetlist(){return (iscluster) ? clustersNets : nets;}
 private:
     std::set<Net*>clustersNetSet;
     void initClustersNets();// put nets in clustersNetSet into clustersNets

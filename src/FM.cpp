@@ -91,7 +91,7 @@ void initGainBucket(std::vector<Cluster>&cellVec,Bucket&b1,Bucket&b2)
         Cell*cell = &ct; 
         if(!cell->isValid())continue;
         int gain = 0;
-        for(auto net : cell->nets){
+        for(auto net : cell->getNetlist()){
             auto From_To_Num = GroupNum(*net,cell);
             if(From_To_Num.first==1) gain++;  //From set == 1 
             if(From_To_Num.second==0)gain--; //To set == 0
@@ -142,7 +142,7 @@ void InitNets(std::vector<Cluster>&cellVec,std::list<Net*>&nets){
     // build connect
     for(auto &cell : cellVec){
         if(cell.isValid())
-        for(auto net : cell.nets)
+        for(auto net : cell.getNetlist())
             net->addCells(&cell);
     }
 }
@@ -197,12 +197,7 @@ void move(std::vector<Cluster>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&buc
 }
 
 
-inline bool ratioPrecheck(const std::pair<float,float>&ratios,const std::pair<int*,int*>&groups){
-    float r = (float) (*groups.first) / (*groups.first + *groups.second);
 
-    // std::cout<<"gp1:"<<*groups.first<<" gp2: "<<*groups.second<<"\n";
-    return (r >= ratios.first && r <= ratios.second);
-}
 
 
 std::pair<std::pair<int,int>,std::pair<int,int>> validStatePick(std::pair<Bucket*,Bucket*>buckets,std::pair<float,float>ratios,\
@@ -308,15 +303,16 @@ void RecoverToStage(std::vector<Cluster>&cellVec,std::vector<int>&moveRecord,int
     for(int k = totalIteration-1; k > bestIteration;k--){
         int CellId = moveRecord.at(k);
         auto &cell = cellVec.at(CellId);
+        int size = cell.getSize();
         if(cell.group1){//now in group1, recover to group2
-            g1Num--;g2Num++;
-            for(auto net:cell.nets){
-                net->group1--;net->group2++;
+            g1Num-=size;g2Num+=size;
+            for(auto net:cell.getNetlist()){
+                net->group1-=size;net->group2+=size;
             }
         }else{
-            g1Num++;g2Num--;
-            for(auto net:cell.nets){
-                net->group1++;net->group2--;
+            g1Num+=size;g2Num-=size;
+            for(auto net:cell.getNetlist()){
+                net->group1+=size;net->group2-=size;
             }
         }
         cell.group1 = !cell.group1;
