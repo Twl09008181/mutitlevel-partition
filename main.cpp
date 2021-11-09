@@ -12,6 +12,8 @@
 
 
 std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &filename);
+
+void SortById(std::vector<Cluster*>&cellVec);
 void InitialPartition_all1(std::vector<Cluster*>&cellVec);
 void Output(std::vector<Cluster*>&cellVec);
 
@@ -33,38 +35,35 @@ int main(int argc,char*argv[]){
     
     auto info = parser(argv[1]);//get unsorted cellVec
 
+
+    // Get netlist and cell info.
     auto cellVec = info.first;
     auto netList = info.second;
+    SortById(cellVec); // sort 
 
-    std::sort(cellVec.begin(),cellVec.end(),[](Cluster*c1,Cluster*c2){return c1->id < c2->id;});//sorted by cellId
-    for(int sortId = 0;sortId < cellVec.size(); ++sortId){
-        cellVec.at(sortId)->setSortId(sortId);
-    }//store sortId 
 
-    
-    // showCell(cellVec);
-
-    InitialPartition_all1(cellVec);
-
-// //  new feature---------------------
-    //clustering
-
+    // give a inital partition or useing clustering
+    //clustering test
     int id = cellVec.at(0)->clustering(cellVec.at(1));
-
     id = cellVec.at(id)->clustering(cellVec.at(2));
     cellVec.at(id)->BuildClustersNets();
 
-    id = cellVec.at(2)->clustering(cellVec.at(3));//warning 
+    //after clustering, doing initial
+    InitialPartition_all1(cellVec);
 
-    //Init nets
-    InitNets(cellVec,netList);
-    for(auto net:netList){showNet(net,cellVec);}
-    
-    //Decluster
+
+  
+
+    //try simulated move
+    cellVec.at(id)->group1 = !cellVec.at(id)->group1;
     cellVec.at(id)->decluster();
-    InitNets(cellVec,netList);
-    for(auto net:netList){showNet(net,cellVec);}
-//  new feature---------------------
+    showCell(cellVec);
+
+
+    //InitNets
+    // InitNets(cellVec,netList);
+    // for(auto net:netList)showNet(net,cellVec);
+
 
 
     // FM(cellVec,netList,0.45,0.55);
@@ -186,16 +185,23 @@ void showCell(std::vector<Cluster*>&cellVec)
         std::cout<<"real id :"<<c->id<<"\n";
         std::cout<<"sort id :"<<c->sortId<<"\n";
         std::cout<<"cluster id:"<<c->clusterId<<"\n";
-
+        std::string gp = c->group1 ? "gp1":"gp2";
+        std::cout<<"in "<<gp<<"\n";
         std::cout<<"nets:";
         
         for(auto n:c->getNetlist()){
             std::cout<<n->NetId<<" ";
         }
-        std::cout<<"\n";
+        std::cout<<"\n\n";
 
     }
 
 
 
+}
+void SortById(std::vector<Cluster*>&cellVec){
+    std::sort(cellVec.begin(),cellVec.end(),[](Cluster*c1,Cluster*c2){return c1->id < c2->id;});//sorted by cellId
+    for(int sortId = 0;sortId < cellVec.size(); ++sortId){
+        cellVec.at(sortId)->setSortId(sortId);
+    }//store sortId 
 }
