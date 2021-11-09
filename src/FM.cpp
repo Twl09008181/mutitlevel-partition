@@ -373,14 +373,13 @@ int CutSize(std::list<Net*>&net){
 
 int Cluster::clustering(Cluster*v){
 
-    if(v==nullptr||!v->isValid()){
+    if(v==nullptr||!v->is_master()){
         std::cerr<<"warning in clustering, input v is invalid\n";
         return this->clusterId;
     }if(v->clusterId==this->clusterId)return this->clusterId;
     
-    if(!this->isValid())
-    {
-        std::cerr<<"warning in clustering,this is not valid,please use master in this cluster to cluster another vertex,master id :"<<this->clusterId<<"\n";
+    if(!this->is_master()){
+        std::cerr<<"warning in clustering," <<sortId <<" is invalid,please use master in this cluster to cluster another vertex,master id :"<<this->clusterId<<"\n";
         return this->clusterId;
     }
 

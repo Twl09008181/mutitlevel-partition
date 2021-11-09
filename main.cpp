@@ -42,36 +42,28 @@ int main(int argc,char*argv[]){
     }//store sortId 
 
     
-    showCell(cellVec);
+    // showCell(cellVec);
 
-//     InitialPartition_all1(cellVec);
+    InitialPartition_all1(cellVec);
 
 // //  new feature---------------------
-//     //clustering
-//     std::cout<<cellVec.at(0)->clusterId<<"\n";
-//     std::cout<<cellVec.at(2)->clusterId<<"\n";
-//     int id = cellVec.at(0)->clustering(cellVec.at(1));
-//     std::cout<<cellVec.at(0)->clusterId<<"\n";
-//     std::cout<<cellVec.at(2)->clusterId<<"\n";
-//     id = cellVec.at(id)->clustering(cellVec.at(2));
-//     std::cout<<cellVec.at(0)->clusterId<<"\n";
-//     std::cout<<cellVec.at(2)->clusterId<<"\n";
+    //clustering
 
-//     cellVec.at(id)->BuildClustersNets();
-//     std::cout<<cellVec.at(0)->clusterId<<"\n";
-//     std::cout<<cellVec.at(2)->clusterId<<"\n";
+    int id = cellVec.at(0)->clustering(cellVec.at(1));
 
-//     std::cout<<cellVec.at(2)->clusterId<<" "<<cellVec.at(0)->clusterId<<"\n";
-//     id = cellVec.at(2)->clustering(cellVec.at(id));
+    id = cellVec.at(id)->clustering(cellVec.at(2));
+    cellVec.at(id)->BuildClustersNets();
 
-    // //Init nets
-    // InitNets(cellVec,netList);
-    // for(auto net:netList){showNet(net,cellVec);}
+    id = cellVec.at(2)->clustering(cellVec.at(3));//warning 
+
+    //Init nets
+    InitNets(cellVec,netList);
+    for(auto net:netList){showNet(net,cellVec);}
     
-    // //Decluster
-    // cellVec.at(id)->decluster();
-    // InitNets(cellVec,netList);
-    // for(auto net:netList){showNet(net,cellVec);}
+    //Decluster
+    cellVec.at(id)->decluster();
+    InitNets(cellVec,netList);
+    for(auto net:netList){showNet(net,cellVec);}
 //  new feature---------------------
 
 

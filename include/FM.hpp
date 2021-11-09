@@ -65,6 +65,9 @@ public:
     void setSortId(int sortedId){
         clusterId = sortId = sortedId;
     }
+    bool is_master(){
+        return sortId==clusterId;
+    }
     // cluster relative member
     int clusterId;
     bool valid;//cluster or non-cluster single valid cell. 
