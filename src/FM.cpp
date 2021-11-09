@@ -18,15 +18,15 @@ extern std::map<int,char>dict;
 
 
 // used to move cellId in gainbucket.
-void Bucket:: erase(Cell&cell){
-    if(cell.freeze){// if cell is already freeze,then it can't be in gainbucket.
+void Bucket:: erase(Cell*cell){
+    if(cell->freeze){// if cell is already freeze,then it can't be in gainbucket.
         std::cerr<<"carefull,cell.freeze = true";
         return ;
     }
-    auto &lst = gainVec.at(cell.gain + maxPin);
-    lst.erase(cell.it);
-    cell.freeze = true;
-    if(cell.gain == maxGain){//update max gain
+    auto &lst = gainVec.at(cell->gain + maxPin);
+    lst.erase(cell->it);
+    cell->freeze = true;
+    if(cell->gain == maxGain){//update max gain
         int idx;
         for(idx = maxGain + maxPin; idx >=0 && gainVec.at(idx).empty() ;idx--);
         maxGain = std::max(idx - maxPin,-maxPin);
@@ -56,21 +56,21 @@ std::pair<int,int> Bucket::front(ties *tie){
     }
 }
 
-void Bucket::push_front(Cell&cell)
+void Bucket::push_front(Cell*cell)
 {
-    int pos = maxPin + cell.gain; // min gain = -maxPin
+    int pos = maxPin + cell->gain; // min gain = -maxPin
     if(pos < 0 || pos > 2 * maxPin){
-        std::cerr<<"gain range error , input gain:"<<cell.gain<< " min gain : "<< - maxPin << " max gain : "<<maxPin<<"\n";
+        std::cerr<<"gain range error , input gain:"<<cell->gain<< " min gain : "<< - maxPin << " max gain : "<<maxPin<<"\n";
         exit(1);
     }
-    gainVec.at(pos).push_front(cell.sortId);
-    cell.it = gainVec.at(pos).begin();     //saving linked-list iterator
-    cell.freeze = false;
-    maxGain = std::max(maxGain,cell.gain); //update maxGain of bucket
+    gainVec.at(pos).push_front(cell->sortId);
+    cell->it = gainVec.at(pos).begin();     //saving linked-list iterator
+    cell->freeze = false;
+    maxGain = std::max(maxGain,cell->gain); //update maxGain of bucket
 }
 
 // O(maxPin) construct gainBucket
-void initGainBucket(std::vector<Cell>&cellVec,Bucket&b1,Bucket&b2)
+void initGainBucket(std::vector<Cluster>&cellVec,Bucket&b1,Bucket&b2)
 {
     b1.gainVec.clear();b2.gainVec.clear();
 
@@ -87,15 +87,17 @@ void initGainBucket(std::vector<Cell>&cellVec,Bucket&b1,Bucket&b2)
     b1.maxPin  = b2.maxPin  = maxPin;
 
     // Build
-    for(auto &cell:cellVec){
+    for(auto & ct :cellVec){
+        Cell*cell = &ct; 
+        if(!cell->isValid())continue;
         int gain = 0;
-        for(auto net : cell.nets){
+        for(auto net : cell->nets){
             auto From_To_Num = GroupNum(*net,cell);
             if(From_To_Num.first==1) gain++;  //From set == 1 
             if(From_To_Num.second==0)gain--; //To set == 0
         }
-        cell.gain = gain;
-        cell.group1 ? b1.push_front(cell) : b2.push_front(cell);
+        cell->gain = gain;
+        cell->group1 ? b1.push_front(cell) : b2.push_front(cell);
     }
 }
 
@@ -119,10 +121,11 @@ void showGainBucket(Bucket*b,std::vector<Cell>&cellVec)
 }
 
 
-inline int group1Num(std::vector<Cell>&cellVec){
+inline int group1Num(std::vector<Cluster>&cellVec){
     int n = 0;
     for(auto &cell:cellVec)
-        if(cell.group1)n++;
+        if(cell.group1)
+            n += cell.getSize();
     return n;
 }
 
@@ -138,59 +141,59 @@ void InitNets(std::vector<Cluster>&cellVec,std::list<Net*>&nets){
     }
     // build connect
     for(auto &cell : cellVec){
-        if(cell.valid)
+        if(cell.isValid())
         for(auto net : cell.nets)
             net->addCells(&cell);
     }
 }
 
 // update cells in same netlist of moving cell.
-void update(std::vector<Cell>&cellVec,Net*net,Cell*movingcell,std::pair<Bucket*,Bucket*>&buckets,bool group1,bool increment,bool onlyOne){
+void update(std::vector<Cluster>&cellVec,Net*net,Cell*movingcell,std::pair<Bucket*,Bucket*>&buckets,bool group1,bool increment,bool onlyOne){
     for(auto cellId:net->cells){
-        Cell& cell = cellVec.at(cellId);// get cell        
-        if(group1 == cell.group1){ // the specified group.
-            if(cell.freeze){
-                if(onlyOne&& &cell != movingcell)break;
+        Cell* cell = &cellVec.at(cellId);// get cell        
+        if(group1 == cell->group1){ // the specified group.
+            if(cell->freeze){
+                if(onlyOne&& cell != movingcell)break;
                 else continue;
             }
             Bucket * b = nullptr;
-            cell.group1 ? (b = buckets.first) : (b = buckets.second);// find the bucket
+            cell->group1 ? (b = buckets.first) : (b = buckets.second);// find the bucket
             b->erase(cell); // erase 
-            increment ? cell.gain++ : cell.gain--;
+            increment ? cell->gain++ : cell->gain--;
             b->push_front(cell); // re-push
             if(onlyOne)break;// do not need to check other cell.
         }
     }
 }
 
-void move(std::vector<Cell>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&buckets){
-    Cell& cell = cellVec.at(cellId);
-    cell.group1 ? (buckets.first->erase(cell)):(buckets.second->erase(cell));
-    bool from_group = cell.group1;
-    for(auto net:cell.nets){
+void move(std::vector<Cluster>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&buckets){
+    Cell* cell = &cellVec.at(cellId);
+    cell->group1 ? (buckets.first->erase(cell)):(buckets.second->erase(cell));
+    bool from_group = cell->group1;
+    for(auto net : cell->getNetlist()){
         auto From_To_Num = GroupNum(*net,cell);    
         int To = From_To_Num.second;
         if(To == 0) 
-            update(cellVec,net,&cell,buckets,from_group,true,false);//increment "from group" cells's gain. 
+            update(cellVec,net,cell,buckets,from_group,true,false);//increment "from group" cells's gain. 
         else if (To == 1) // if to == 1
-            update(cellVec,net,&cell,buckets,!from_group,false,true);//decrement "to group" cell's gain. 
+            update(cellVec,net,cell,buckets,!from_group,false,true);//decrement "to group" cell's gain. 
         //assume move
         int From = From_To_Num.first - 1;
         if(From == 0) // if From ==0
-            update(cellVec,net,&cell,buckets,!from_group,false,false);//decrement "to group" cells's gain. 
+            update(cellVec,net,cell,buckets,!from_group,false,false);//decrement "to group" cells's gain. 
         else if (From == 1) // if From == 1
-            update(cellVec,net,&cell,buckets,from_group,true,true);//increment "from group" cell's gain. 
+            update(cellVec,net,cell,buckets,from_group,true,true);//increment "from group" cell's gain. 
         //update net's group num.
-        if(cell.group1){
-            net->group1 -= cell.getSize();
-            net->group2 += cell.getSize();
+        if(cell->group1){
+            net->group1 -= cell->getSize();
+            net->group2 += cell->getSize();
         }else{
-            net->group1 += cell.getSize();
-            net->group2 -= cell.getSize();
+            net->group1 += cell->getSize();
+            net->group2 -= cell->getSize();
         }
     }
     //really move
-    cell.group1 = !cell.group1;
+    cell->group1 = !cell->group1;
 }
 
 
@@ -247,7 +250,7 @@ std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,
 
 //first : move id
 //second : gain
-std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
+std::pair<int,int> onePass(std::vector<Cluster>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie){
     auto candidates = getCandidate(buckets,ratios,groups,tie);// get
     if(candidates.first.first==-1 && candidates.second.first==-1)return candidates.first;// no cell can move
@@ -301,7 +304,7 @@ int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int ite
 }
 
 
-void RecoverToStage(std::vector<Cell>&cellVec,std::vector<int>&moveRecord,int bestIteration,int totalIteration,int&g1Num,int&g2Num){
+void RecoverToStage(std::vector<Cluster>&cellVec,std::vector<int>&moveRecord,int bestIteration,int totalIteration,int&g1Num,int&g2Num){
     for(int k = totalIteration-1; k > bestIteration;k--){
         int CellId = moveRecord.at(k);
         auto &cell = cellVec.at(CellId);
@@ -321,7 +324,7 @@ void RecoverToStage(std::vector<Cell>&cellVec,std::vector<int>&moveRecord,int be
 }
 
 
-void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2,ties*tie)
+void FM(std::vector<Cluster>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie)
 {
     int totalNum = cellVec.size();
 
@@ -356,6 +359,8 @@ void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2,ties*tie)
         maxGain = gainAcc.at(bestIteration);
         // Recover state to bestIteration.
         RecoverToStage(cellVec,moveRecord,bestIteration,k,g1Num,g2Num);
+
+        //decluster();
     }while(maxGain > 0);
 
 }

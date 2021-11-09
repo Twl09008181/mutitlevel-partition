@@ -35,6 +35,9 @@ struct Cell{
     bool freeze = true;
     std::list<int>::iterator it;//to access gain bucket.
 
+
+    virtual std::list<Net*>getNetlist(){return nets;}
+    virtual bool isValid(){return true;}
     virtual int getSize(){return 1;}
 };//using std::vector<Cell> to save all Cells.   
 
@@ -66,7 +69,7 @@ public:
     int clustering(Cluster&v);//return id
     void decluster();
     int getSize(){return cells.size();}
-    
+    bool isValid(){return valid;}
     std::list<Net*>& getNets(){
         if(iscluster)return clustersNets;
         else return nets;
@@ -75,6 +78,12 @@ public:
         nets.push_front(net);
         clustersNetSet.insert(net);
         netNum++;
+    }
+    std::list<Net*>getNetlist(){
+        if(!iscluster)
+            return nets;
+        else 
+            return clustersNets;
     }
 private:
     std::set<Net*>clustersNetSet;
@@ -86,8 +95,8 @@ private:
 void InitNets(std::vector<Cluster>&cellVec,std::list<Net*>&nets);
 
 // <from part,to part>
-inline std::pair<int,int> GroupNum(const Net& net,const Cell& cell){
-    return cell.group1? std::pair<int,int>{net.group1,net.group2} : std::pair<int,int>{net.group2,net.group1};
+inline std::pair<int,int> GroupNum(const Net& net,const Cell* cell){
+    return cell->group1? std::pair<int,int>{net.group1,net.group2} : std::pair<int,int>{net.group2,net.group1};
 }
 
 inline int alphabetical_order(int gain1,int gain2,int id1,int id2){
@@ -104,14 +113,14 @@ struct Bucket{
     int maxGain;   
     int maxPin;
     std::pair<int,int> front(ties* tie = nullptr);//return <max-gain cellID,gain>
-    void erase(Cell&cell);
-    void push_front(Cell&cell);
+    void erase(Cell*cell);
+    void push_front(Cell*cell);
 };
 
-std::pair<int,int> onePass(std::vector<Cell>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
+std::pair<int,int> onePass(std::vector<Cluster>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie = nullptr);
 
-void FM(std::vector<Cell>&cellVec,float ratio1,float ratio2,ties*tie = nullptr);
+void FM(std::vector<Cluster>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie = nullptr);
 
 int CutSize(std::list<Net*>&net);
 

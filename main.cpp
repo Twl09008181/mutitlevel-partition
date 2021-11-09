@@ -41,7 +41,7 @@ int main(int argc,char*argv[]){
     auto cellVec = info.first;
     auto netList = info.second;
 
-    std::sort(cellVec.begin(),cellVec.end(),[](Cell&c1,Cell&c2){return c1.id < c2.id;});//sorted by cellId
+    std::sort(cellVec.begin(),cellVec.end(),[](Cluster&c1,Cluster&c2){return c1.id < c2.id;});//sorted by cellId
     for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId).sortId = sortId;}//store sortId 
 
     //init net
@@ -49,19 +49,19 @@ int main(int argc,char*argv[]){
     InitialPartition_all1(cellVec);
     InitNets(cellVec,netList);
 
-    for(auto net:netList){showNet(net);}
+    // for(auto net:netList){showNet(net);}
 
-    std::cout<<"done\n";
+    // std::cout<<"done\n";
 
-    // FM(cellVec,0.45,0.55);
-
-
+    FM(cellVec,netList,0.45,0.55);
 
 
-    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    // Output(cellVec);
-    // for(auto net:netList)
-    //     delete net;
+
+
+    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    Output(cellVec);
+    for(auto net:netList)
+        delete net;
 
 
     return 0;
