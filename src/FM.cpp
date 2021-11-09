@@ -133,17 +133,17 @@ void Net::addCells(Cell*cell){
     cells.push_front(cell->sortId);
     cell->group1 ? (group1+=cell->getSize()) : (group2+=cell->getSize());
 }
-void InitNets(std::vector<Cluster>&cellVec,std::list<Net*>&nets){
+void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets){
     // clear all
     for(auto n:nets){
         n->group1 = n->group2 = 0;
         n->cells.clear();
     }
     // build connect
-    for(auto &cell : cellVec){
-        if(cell.isValid())
-        for(auto net : cell.getNetlist())
-            net->addCells(&cell);
+    for(auto cell : cellVec){
+        if(cell->isValid())
+        for(auto net : cell->getNetlist())
+            net->addCells(cell);
     }
 }
 
@@ -367,4 +367,66 @@ int CutSize(std::list<Net*>&net){
             cut++;
     }
     return cut;
+}
+
+
+
+int Cluster::clustering(Cluster*v){
+
+    if(v==nullptr){
+        std::cerr<<"warning in clustering,v is nullptr\n";
+        return this->clusterId;
+    }if(v==this)return this->clusterId;
+  
+    //flag setting
+    v->clusterId = this->clusterId;
+    this->valid = v->valid = false;
+    v->iscluster = false;this->iscluster = true;
+
+    // cluster
+    for(auto c:v->cells)
+        this->cells.push_back(c);
+
+    //set1 is bigger than set2
+    auto &set1 = (netNum >= v->netNum) ? this->clustersNetSet :v->clustersNetSet;
+    auto &set2 = (netNum >= v->netNum) ? v->clustersNetSet : this->clustersNetSet;
+    
+    for(auto net:set2)
+        if(set1.find(net)==set1.end())
+            set1.insert(net);
+
+    if(&clustersNetSet != &set1)  //carefully
+        this->clustersNetSet = std::move(set1);
+    //not necessary op
+    v->clustersNetSet.clear();
+    v->clustersNets.clear();
+    return this->clusterId;
+}
+void Cluster::BuildClustersNets(){  
+   
+    if(iscluster){
+        netNum = 0;
+        clustersNets.clear();
+        for(auto net:clustersNetSet){
+            clustersNets.push_front(net);
+            netNum++;
+        }
+        valid = true;
+    }else{
+        std::cerr<<"warning !  \
+        only cluster cells need call void BuildClustersNets()\n";
+    }
+}
+
+void Cluster::decluster(){
+    clustersNetSet.clear();
+    clustersNets.clear();
+    for(auto c : cells){
+        c->valid = true;
+        c->iscluster = false;
+        c->clusterId = c->sortId;
+        c->netNum = c->originNetNum;
+        for(auto net:c->nets)  //not necessary,but for safe.
+            c->clustersNetSet.insert(net);
+    }
 }

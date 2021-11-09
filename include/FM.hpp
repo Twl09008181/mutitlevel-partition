@@ -54,26 +54,41 @@ public:
     Cluster(int realid,int sortedId){
         id = realid;
         sortId = sortedId;
-        cells.push_front(sortId);
+
+        // cluster relative
+        cells.push_front(this);
         valid = true;
         iscluster = false;
+        clusterId = sortId;
     }
-    std::list<int>cells;//紀錄存了哪些cell,decluster需要
-    std::list<Net*>clustersNets;//FM需要整個Nets
-    int originNetNum = 0;//不確定會不會用到
-
+    
+    // cluster relative member
+    int clusterId;
     bool valid;//cluster or non-cluster single valid cell. 
     bool iscluster;//decluster後set false,cluster後 set true.
+    std::list<Cluster*>cells;//紀錄存了哪些cell,decluster需要
+    int originNetNum = 0;//decluster時會用到
 
     bool is_cluster(){return iscluster;}//only one cell.
-    int clustering(Cluster&v);//return id
+    // update cluster member
+    int clustering(Cluster*v);//return id
     void decluster();
+
+
+
+    // after all clustering is done
+    // put nets in clustersNetSet into clustersNets
+    void BuildClustersNets();
 
 
     // inherint functions
     int getSize(){return cells.size();}
-    bool isValid(){return valid;}
+    bool isValid(){
+        if(iscluster&&!valid){std::cerr<<"isValid warning, a cluster is always valid,you may need to check if you have already call BuildClustersNets\n";}
+        return valid;
+    }
     void addNet(Net*net){
+        if(iscluster){std::cerr<<"warrning,this cell is already a cluster, use addNet may causing some unexpected result.\n";}
         nets.push_front(net);
         clustersNetSet.insert(net);
         netNum++;
@@ -81,12 +96,12 @@ public:
     std::list<Net*>getNetlist(){return (iscluster) ? clustersNets : nets;}
 private:
     std::set<Net*>clustersNetSet;
-    void initClustersNets();// put nets in clustersNetSet into clustersNets
+    std::list<Net*>clustersNets;//FM需要整個Nets
 };
 
 
 
-void InitNets(std::vector<Cluster>&cellVec,std::list<Net*>&nets);
+void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets);
 
 // <from part,to part>
 inline std::pair<int,int> GroupNum(const Net& net,const Cell* cell){

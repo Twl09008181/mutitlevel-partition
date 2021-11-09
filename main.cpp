@@ -17,13 +17,13 @@
 
 
 
-std::pair<std::vector<Cluster>,std::list<Net*>> parser(const std::string &filename);
+std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &filename);
 // void InitialPartition(std::vector<Cluster>&cellVec,std::vector<bool>&partition);
 // void InitialPartition_avg(std::vector<Cluster*>&cellVec);
-void InitialPartition_all1(std::vector<Cluster>&cellVec);
-void Output(std::vector<Cluster>&cellVec);
+void InitialPartition_all1(std::vector<Cluster*>&cellVec);
+void Output(std::vector<Cluster*>&cellVec);
 
-void showNet(Net*net);
+void showNet(Net*net,std::vector<Cluster*>&cellVec);
 
 int main(int argc,char*argv[]){
 
@@ -41,33 +41,48 @@ int main(int argc,char*argv[]){
     auto cellVec = info.first;
     auto netList = info.second;
 
-    std::sort(cellVec.begin(),cellVec.end(),[](Cluster&c1,Cluster&c2){return c1.id < c2.id;});//sorted by cellId
-    for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId).sortId = sortId;}//store sortId 
+    std::sort(cellVec.begin(),cellVec.end(),[](Cluster*c1,Cluster*c2){return c1->id < c2->id;});//sorted by cellId
+    for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId)->sortId = sortId;}//store sortId 
 
     //init net
 
     InitialPartition_all1(cellVec);
     InitNets(cellVec,netList);
 
-    // for(auto net:netList){showNet(net);}
+    // for(auto net:netList){showNet(net,cellVec);}
 
     // std::cout<<"done\n";
 
-    FM(cellVec,netList,0.45,0.55);
+    // std::cout<<cellVec.at(1)->sortId<<"\n";
+    // std::cout<<&cellVec.at(1)<<"\n";
+
+    // std::cout<<cellVec.at(1)->cells.front()<<"\n";
 
 
 
+    cellVec.at(0)->clustering(cellVec.at(1));
+    cellVec.at(0)->BuildClustersNets();
+    InitNets(cellVec,netList);
+    for(auto net:netList){showNet(net,cellVec);}
+    
 
-    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    Output(cellVec);
-    for(auto net:netList)
-        delete net;
+    cellVec.at(0)->decluster();
+    InitNets(cellVec,netList);
+    for(auto net:netList){showNet(net,cellVec);}
+
+    // FM(cellVec,netList,0.45,0.55);
+
+
+    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    // Output(cellVec);
+    // for(auto net:netList)
+    //     delete net;
 
 
     return 0;
 }
 
-std::pair<std::vector<Cluster>,std::list<Net*>> parser(const std::string &fileName){
+std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &fileName){
    std::ifstream input{fileName};
 
    if(!input){std::cerr<<"can't open"<<fileName<<"\n";} 
@@ -75,7 +90,7 @@ std::pair<std::vector<Cluster>,std::list<Net*>> parser(const std::string &fileNa
     int NetsNum,CellNum;
     input >> NetsNum >> CellNum;
 
-    std::vector<Cluster>cells;cells.reserve(CellNum);
+    std::vector<Cluster*>cells;cells.reserve(CellNum);
     std::unordered_map<int,int>cellRecord;//<id,vec_pos>
 
     
@@ -103,11 +118,11 @@ std::pair<std::vector<Cluster>,std::list<Net*>> parser(const std::string &fileNa
                 cellRecord.insert({id,pos});
             
                 //build cell
-                cells.push_back({id,pos});
-                cells.at(pos).addNet(net);
+                cells.push_back(new Cluster{id,pos});
+                cells.at(pos)->addNet(net);
             }else{
                 int pos = cptr->second;
-                cells.at(pos).addNet(net);
+                cells.at(pos)->addNet(net);
             }
         }
     }
@@ -135,22 +150,35 @@ std::pair<std::vector<Cluster>,std::list<Net*>> parser(const std::string &fileNa
 //     }
 // }
 
-void InitialPartition_all1(std::vector<Cluster>&cellVec){
+void InitialPartition_all1(std::vector<Cluster*>&cellVec){
     for(int i = 0;i<cellVec.size();i++)
-        cellVec.at(i).group1 = true;
+        cellVec.at(i)->group1 = true;
 }
-void Output(std::vector<Cluster>&cellVec){
+void Output(std::vector<Cluster*>&cellVec){
     std::ofstream out{"output.txt"};
     for(auto c:cellVec)
-        out << c.group1 <<"\n";
+        out << c->group1 <<"\n";
     out.close();
 }
-void showNet(Net*net)
+void showNet(Net*net,std::vector<Cluster*>&cellVec)
 {
     std::cout<<"Net"<<net->NetId<<"\n";
     std::cout<<"total cells:"<<net->cells.size()<<"\n";
     std::cout<<"group1:"<<net->group1<<" group2 "<<net->group2<<"\n";
-    for(auto c:net->cells)
-        std::cout<<c<<" ";
+    for(auto c:net->cells){
+
+        auto cell = cellVec.at(c); 
+        if(!cell->isValid())continue;
+
+        if(cell->is_cluster()){
+            std::cout<<c<<" is a cluster,cells : ";
+            for(auto cells:cell->cells)
+                std::cout<<cells->sortId<<" ";
+        }
+        else{
+            std::cout<<c<<" ";
+        }
+        std::cout<<"\n";
+    }
     std::cout<<"\n";
 }
