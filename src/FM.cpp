@@ -373,11 +373,17 @@ int CutSize(std::list<Net*>&net){
 
 int Cluster::clustering(Cluster*v){
 
-    if(v==nullptr){
-        std::cerr<<"warning in clustering,v is nullptr\n";
+    if(v==nullptr||!v->isValid()){
+        std::cerr<<"warning in clustering, input v is invalid\n";
         return this->clusterId;
-    }if(v==this)return this->clusterId;
-  
+    }if(v->clusterId==this->clusterId)return this->clusterId;
+    
+    if(!this->isValid())
+    {
+        std::cerr<<"warning in clustering,this is not valid,please use master in this cluster to cluster another vertex,master id :"<<this->clusterId<<"\n";
+        return this->clusterId;
+    }
+
     //flag setting
     v->clusterId = this->clusterId;
     this->valid = v->valid = false;
@@ -402,8 +408,8 @@ int Cluster::clustering(Cluster*v){
     v->clustersNets.clear();
     return this->clusterId;
 }
+
 void Cluster::BuildClustersNets(){  
-   
     if(iscluster){
         netNum = 0;
         clustersNets.clear();
@@ -419,14 +425,18 @@ void Cluster::BuildClustersNets(){
 }
 
 void Cluster::decluster(){
-    clustersNetSet.clear();
-    clustersNets.clear();
-    for(auto c : cells){
-        c->valid = true;
-        c->iscluster = false;
-        c->clusterId = c->sortId;
-        c->netNum = c->originNetNum;
-        for(auto net:c->nets)  //not necessary,but for safe.
-            c->clustersNetSet.insert(net);
+    if(iscluster){
+        clustersNetSet.clear();
+        clustersNets.clear();
+        for(auto c : cells){
+            c->valid = true;
+            c->iscluster = false;
+            c->clusterId = c->sortId;
+            c->netNum = c->originNetNum;
+            for(auto net:c->nets)  //not necessary,but for safe.
+                c->clustersNetSet.insert(net);
+        }
+    }else{
+        std::cerr<<"void Cluster::decluster() warning, cell "<<sortId<<" is not a cluster\n";
     }
 }

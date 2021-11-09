@@ -51,17 +51,20 @@ struct Cell{
 
 class Cluster : public Cell{
 public:
-    Cluster(int realid,int sortedId){
+    Cluster(int realid)
+    {
         id = realid;
-        sortId = sortedId;
+        sortId = -1;
 
         // cluster relative
         cells.push_front(this);
         valid = true;
         iscluster = false;
-        clusterId = sortId;
+        clusterId = -1;
     }
-    
+    void setSortId(int sortedId){
+        clusterId = sortId = sortedId;
+    }
     // cluster relative member
     int clusterId;
     bool valid;//cluster or non-cluster single valid cell. 

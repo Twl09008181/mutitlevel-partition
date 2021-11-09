@@ -8,22 +8,17 @@
 #include <algorithm>
 #include <map>
 
-// std::pair<std::vector<Cell>,std::list<Net*>> parser(const std::string &filename);
-// void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition);
-// void InitialPartition_avg(std::vector<Cell*>&cellVec);
-// void InitialPartition_all1(std::vector<Cell>&cellVec);
-// void Output(std::vector<Cell>&cellVec);
-//group cells
 
 
 
 std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &filename);
-// void InitialPartition(std::vector<Cluster>&cellVec,std::vector<bool>&partition);
-// void InitialPartition_avg(std::vector<Cluster*>&cellVec);
 void InitialPartition_all1(std::vector<Cluster*>&cellVec);
 void Output(std::vector<Cluster*>&cellVec);
 
 void showNet(Net*net,std::vector<Cluster*>&cellVec);
+
+
+void showCell(std::vector<Cluster*>&cellVec);
 
 int main(int argc,char*argv[]){
 
@@ -42,33 +37,43 @@ int main(int argc,char*argv[]){
     auto netList = info.second;
 
     std::sort(cellVec.begin(),cellVec.end(),[](Cluster*c1,Cluster*c2){return c1->id < c2->id;});//sorted by cellId
-    for(int sortId = 0;sortId < cellVec.size(); ++sortId){cellVec.at(sortId)->sortId = sortId;}//store sortId 
+    for(int sortId = 0;sortId < cellVec.size(); ++sortId){
+        cellVec.at(sortId)->setSortId(sortId);
+    }//store sortId 
 
-    //init net
-
-    InitialPartition_all1(cellVec);
-    InitNets(cellVec,netList);
-
-    // for(auto net:netList){showNet(net,cellVec);}
-
-    // std::cout<<"done\n";
-
-    // std::cout<<cellVec.at(1)->sortId<<"\n";
-    // std::cout<<&cellVec.at(1)<<"\n";
-
-    // std::cout<<cellVec.at(1)->cells.front()<<"\n";
-
-
-
-    cellVec.at(0)->clustering(cellVec.at(1));
-    cellVec.at(0)->BuildClustersNets();
-    InitNets(cellVec,netList);
-    for(auto net:netList){showNet(net,cellVec);}
     
+    showCell(cellVec);
 
-    cellVec.at(0)->decluster();
-    InitNets(cellVec,netList);
-    for(auto net:netList){showNet(net,cellVec);}
+//     InitialPartition_all1(cellVec);
+
+// //  new feature---------------------
+//     //clustering
+//     std::cout<<cellVec.at(0)->clusterId<<"\n";
+//     std::cout<<cellVec.at(2)->clusterId<<"\n";
+//     int id = cellVec.at(0)->clustering(cellVec.at(1));
+//     std::cout<<cellVec.at(0)->clusterId<<"\n";
+//     std::cout<<cellVec.at(2)->clusterId<<"\n";
+//     id = cellVec.at(id)->clustering(cellVec.at(2));
+//     std::cout<<cellVec.at(0)->clusterId<<"\n";
+//     std::cout<<cellVec.at(2)->clusterId<<"\n";
+
+//     cellVec.at(id)->BuildClustersNets();
+//     std::cout<<cellVec.at(0)->clusterId<<"\n";
+//     std::cout<<cellVec.at(2)->clusterId<<"\n";
+
+//     std::cout<<cellVec.at(2)->clusterId<<" "<<cellVec.at(0)->clusterId<<"\n";
+//     id = cellVec.at(2)->clustering(cellVec.at(id));
+
+    // //Init nets
+    // InitNets(cellVec,netList);
+    // for(auto net:netList){showNet(net,cellVec);}
+    
+    // //Decluster
+    // cellVec.at(id)->decluster();
+    // InitNets(cellVec,netList);
+    // for(auto net:netList){showNet(net,cellVec);}
+//  new feature---------------------
+
 
     // FM(cellVec,netList,0.45,0.55);
 
@@ -118,7 +123,7 @@ std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &fileN
                 cellRecord.insert({id,pos});
             
                 //build cell
-                cells.push_back(new Cluster{id,pos});
+                cells.push_back(new Cluster{id});
                 cells.at(pos)->addNet(net);
             }else{
                 int pos = cptr->second;
@@ -181,4 +186,24 @@ void showNet(Net*net,std::vector<Cluster*>&cellVec)
         std::cout<<"\n";
     }
     std::cout<<"\n";
+}
+void showCell(std::vector<Cluster*>&cellVec)
+{
+    for(auto c:cellVec)
+    {
+        std::cout<<"real id :"<<c->id<<"\n";
+        std::cout<<"sort id :"<<c->sortId<<"\n";
+        std::cout<<"cluster id:"<<c->clusterId<<"\n";
+
+        std::cout<<"nets:";
+        
+        for(auto n:c->getNetlist()){
+            std::cout<<n->NetId<<" ";
+        }
+        std::cout<<"\n";
+
+    }
+
+
+
 }
