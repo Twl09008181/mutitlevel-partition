@@ -432,8 +432,10 @@ void Cluster::decluster(){
             c->iscluster = false;
             c->clusterId = c->sortId;
             c->netNum = c->originNetNum;
+            c->group1 = this->group1; // important 
             for(auto net:c->nets)  //not necessary,but for safe.
                 c->clustersNetSet.insert(net);
+            
         }
     }else{
         std::cerr<<"void Cluster::decluster() warning, cell "<<sortId<<" is not a cluster\n";
