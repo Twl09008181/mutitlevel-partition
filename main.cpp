@@ -22,6 +22,8 @@ void showNet(Net*net,std::vector<Cluster*>&cellVec);
 
 void showCell(std::vector<Cluster*>&cellVec);
 
+void showCell(Cluster*c);
+
 int main(int argc,char*argv[]){
 
     if(argc!=2)
@@ -45,8 +47,22 @@ int main(int argc,char*argv[]){
     // give a inital partition or useing clustering
     //clustering test
     int id = cellVec.at(0)->clustering(cellVec.at(1));
-    id = cellVec.at(id)->clustering(cellVec.at(2));
+    // id = cellVec.at(id)->clustering(cellVec.at(2));
+    // std::cout<<"id : "<<id<<"\n";
+
+    // std::cout<<cellVec.at(id)->is_cluster()<<" "<<cellVec.at(id)->is_master()<<"\n";
     cellVec.at(id)->BuildClustersNets();
+
+    // showCell(cellVec.at(0));
+
+    // id = cellVec.at(3)->clustering(cellVec.at(4));
+    // cellVec.at(id)->BuildClustersNets();
+    // id = cellVec.at(5)->clustering(cellVec.at(6));
+    // cellVec.at(id)->BuildClustersNets();
+    // id = cellVec.at(id)->clustering(cellVec.at(7));
+    // cellVec.at(id)->BuildClustersNets();
+
+    // cellVec.at(id)->BuildClustersNets();
 
     //after clustering, doing initial
     InitialPartition_all1(cellVec);
@@ -55,15 +71,28 @@ int main(int argc,char*argv[]){
     InitNets(cellVec,netList);
     // for(auto net:netList)showNet(net,cellVec);
 
+    // showCell(cellVec);
 
-    std::cout<<"start Fm\n";
+
+
+    // auto clusters = getClusterQ(cellVec);
+
+    // while(!clusters.empty())
+    // {
+    //     std::cout<<clusters.top()->clusterId<<"\n";
+    //     clusters.pop();
+    // }
+
+
+    // std::cout<<"start Fm\n";
     FM(cellVec,netList,0.45,0.55);
-    std::cout<<"end Fm\n";
+    // std::cout<<"end Fm\n";
 
+    // InitNets(cellVec,netList);
     std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    Output(cellVec);
-    for(auto net:netList)
-        delete net;
+    // Output(cellVec);
+    // for(auto net:netList)
+    //     delete net;
 
 
     return 0;
@@ -168,6 +197,22 @@ void showNet(Net*net,std::vector<Cluster*>&cellVec)
         std::cout<<"\n";
     }
     std::cout<<"\n";
+}
+
+void showCell(Cluster*c)
+{
+
+        std::cout<<"real id :"<<c->id<<"\n";
+        std::cout<<"sort id :"<<c->sortId<<"\n";
+        std::cout<<"cluster id:"<<c->clusterId<<"\n";
+        std::string gp = c->group1 ? "gp1":"gp2";
+        std::cout<<"in "<<gp<<"\n";
+        std::cout<<"nets:";
+        
+        for(auto n:c->getNetlist()){
+            std::cout<<n->NetId<<" ";
+        }
+        std::cout<<"\n\n";
 }
 void showCell(std::vector<Cluster*>&cellVec)
 {

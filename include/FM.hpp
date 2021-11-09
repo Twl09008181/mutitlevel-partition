@@ -10,18 +10,17 @@
 
 struct Cell;
 struct Net{
-
-    Net(int id)
-        :NetId{id}{}
+    Net(int id):NetId{id}{}
     int NetId;
     using CellId = int;//pesudo id (sort id)
     std::list<CellId> cells;
 
-    //need maintain
+    //need maintain for quickly cacluating gains.
     int group1 = 0;
     int group2 = 0;
     void addCells(Cell*cell);
 };
+
 struct Cell{
     int id;//編號不一定會是從1~node的總數
     int sortId;
@@ -39,7 +38,7 @@ struct Cell{
 
     virtual std::list<Net*>getNetlist(){return nets;}
     virtual bool isValid(){return true;}
-    virtual int getSize(){return 1;}
+    virtual int getSize()const{return 1;}  //bug 1 ........................
 };//using std::vector<Cell> to save all Cells.   
 
 //First step is to build CellArray (sorted by id),and save sortId.
@@ -62,6 +61,8 @@ public:
         valid = true;
         iscluster = false;
         clusterId = -1;
+
+        cellsNum = 1;
     }
     void setSortId(int sortedId){
         clusterId = sortId = sortedId;
@@ -76,6 +77,8 @@ public:
     std::list<Cluster*>cells;//紀錄存了哪些cell,decluster需要
     int originNetNum = 0;//decluster時會用到
 
+    int cellsNum;
+
     bool is_cluster(){return iscluster;}//only one cell.
     // update cluster member
     int clustering(Cluster*v);//return id
@@ -89,7 +92,10 @@ public:
 
 
     // inherint functions
-    int getSize()const{return cells.size();}
+    // int getSize()const{return cellsNum;}
+    int getSize()const{
+        return cells.size();
+    }
     bool isValid(){
         if(is_master()&&!valid){std::cerr<<"isValid warning, a cluster ,master is always valid,you may need to check if you have already call BuildClustersNets\n";}
         return valid;
@@ -100,7 +106,14 @@ public:
         clustersNetSet.insert(net);
         netNum++;
     }
-    std::list<Net*>getNetlist(){return (iscluster) ? clustersNets : nets;}
+    std::list<Net*>getNetlist(){
+        if(is_master())
+            return (iscluster) ? clustersNets : nets;
+        else{
+            std::cerr<<"netNelist warning, "<<sortId<<" is not a cluster master\n";
+            return nets;
+        }
+    }
 private:
     std::set<Net*>clustersNetSet;
     std::list<Net*>clustersNets;//FM需要整個Nets
@@ -112,7 +125,9 @@ struct clusterCmp
         return c1->getSize() < c2->getSize();
     }
 };
-std::priority_queue<Cluster*,std::vector<Cluster*>,clusterCmp> getClusterQ(std::vector<Cluster*>&);
+using ClusterQ = std::priority_queue<Cluster*,std::vector<Cluster*>,clusterCmp>;
+ClusterQ  getClusterQ(std::vector<Cluster*>&);
+std::vector<int>get_clusterID(ClusterQ &q,int size );
 
 void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets);
 
