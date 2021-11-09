@@ -1,9 +1,9 @@
 
 
-CXX = g++
+CXX = g++ 
 CXXFALG = -std=c++11 -g 
 # CPPFLAGS = -D DEBUG
-
+CPPFLAGS = -fopenmp 
 
 obj = src/FM.o
 DEP = include/FM.hpp

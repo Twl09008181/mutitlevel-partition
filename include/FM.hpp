@@ -85,7 +85,7 @@ public:
 
     // inherint functions
     int getSize()const{return cellsNum;}
-    
+
     bool isValid(){
         if(is_master()&&!valid){std::cerr<<"isValid warning, a cluster ,master is always valid,you may need to check if you have already call BuildClustersNets\n";}
         return valid;
@@ -115,9 +115,9 @@ struct clusterCmp
         return c1->getSize() < c2->getSize();
     }
 };
-using ClusterQ = std::priority_queue<Cluster*,std::vector<Cluster*>,clusterCmp>;
-ClusterQ  getClusterQ(std::vector<Cluster*>&);
-std::vector<int>get_clusterID(ClusterQ &q,int size );
+using dClusterQ = std::priority_queue<Cluster*,std::vector<Cluster*>,clusterCmp>;
+dClusterQ getdClusterQ(std::vector<Cluster*>&cellVec);
+std::vector<int>get_dclusterID(dClusterQ &q,int size );
 
 void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets);
 

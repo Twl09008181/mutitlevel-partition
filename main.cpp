@@ -7,9 +7,10 @@
 #include <unordered_map>
 #include <algorithm>
 #include <map>
-
-
-
+#include <unordered_map>
+#include <queue>
+#include <float.h>
+#include <omp.h>
 
 std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &filename);
 
@@ -24,6 +25,103 @@ void showCell(std::vector<Cluster*>&cellVec);
 
 void showCell(Cluster*c);
 
+
+// using ClusterQ = std::priority_queue<>
+// void Cluster
+
+//linear intersections
+std::list<Net*> intersections(std::vector<Net*>&v1,std::vector<Net*>&v2)
+{   
+    auto nidcmp = [](Net*n1,Net*n2){return n1->NetId < n2->NetId;};
+    std::sort(v1.begin(),v1.end(),nidcmp);
+    std::sort(v2.begin(),v2.end(),nidcmp);
+    int i = 0,j = 0;
+    std::list<Net*>inters;
+    while(i < v1.size() && j < v2.size()){
+        int nid1 = v1.at(i)->NetId;
+        int nid2 = v2.at(j)->NetId;
+        if(nid1==nid2){
+            inters.push_front(v1.at(i));
+            i++;
+            j++;
+        }else if (nid1 < nid2){
+            i++;
+        }else{
+            j++;
+        }
+    }
+    return inters;
+}
+
+
+std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,Cluster*cell)
+{
+    int closet = -1;//if return is -1 , then cell has no neighbor.
+    float score = -FLT_MAX;
+    std::vector<Net*>NetsRecord;NetsRecord.reserve(cell->netNum);
+    std::unordered_map<int,int>neighbors;//quickly find neighbors.
+    for(auto net:cell->getNetlist()){
+        NetsRecord.push_back(net);
+        for(auto neighbor:net->cells){
+            if(neighbor!=cell->sortId)
+                neighbors.insert({neighbor,0});
+        }
+    }
+
+  
+    for(auto nid:neighbors){
+        Cluster* n = cellVec.at(nid.first);
+
+        // get Net 
+        std::vector<Net*>n_NetsRecord;n_NetsRecord.reserve(n->netNum);
+        for(auto net:n->getNetlist())n_NetsRecord.push_back(net);
+ 
+        // get intersections
+        auto inters = intersections(NetsRecord,n_NetsRecord);
+
+        // find best
+        float sc = 0;
+        for(auto net:inters){
+            float w = 1/float(net->group1 + net->group2);
+            sc += w/(cell->getSize() + n->getSize());
+        }
+        if(sc > score){
+            closet = nid.first;
+            score = sc;
+        }
+    }
+    return {closet,score};
+}
+
+void ClusterQinit(std::vector<Cluster*>&cellVec,std::list<Net*>&netlist){
+
+    // std::unordered_map<int,int>closetPairs;//any vertex v only has one closed neighbor u.
+
+    InitNets(cellVec,netlist);//need init first.
+
+    //  closetPairs.at(idx).first : the closet vertex of idx,  
+    //  closetPairs.at(idx).second : the coresponding cost
+    std::vector<std::pair<int,float>>closetPairs;closetPairs.resize(cellVec.size());
+
+
+
+
+    //可能可以平行化
+    #pragma omp parllel 
+    {
+        std::cout<<omp_get_num_threads()<<"\n";
+        #pragma omp for
+        for(int i = 0;i < cellVec.size();i++){
+            Cluster& cell = *cellVec.at(i);
+            closetPairs.at(i) = getCloset(cellVec,&cell);
+        }
+    }
+
+
+}
+
+
+
 int main(int argc,char*argv[]){
 
     if(argc!=2)
@@ -32,8 +130,7 @@ int main(int argc,char*argv[]){
         exit(1);
     }
 
-   
-
+ 
     
     auto info = parser(argv[1]);//get unsorted cellVec
 
@@ -44,55 +141,46 @@ int main(int argc,char*argv[]){
     SortById(cellVec); // sort 
 
 
-    // give a inital partition or useing clustering
+
+ 
+
+    
+
+    ClusterQinit(cellVec,netList);
+
+
+
+   // give a inital partition or useing clustering
     //clustering test
-    int id = cellVec.at(0)->clustering(cellVec.at(1));
+    // int id = cellVec.at(0)->clustering(cellVec.at(1));
     // id = cellVec.at(id)->clustering(cellVec.at(2));
     // std::cout<<"id : "<<id<<"\n";
 
     // std::cout<<cellVec.at(id)->is_cluster()<<" "<<cellVec.at(id)->is_master()<<"\n";
-    cellVec.at(id)->BuildClustersNets();
-
-    // showCell(cellVec.at(0));
-
-    // id = cellVec.at(3)->clustering(cellVec.at(4));
-    // cellVec.at(id)->BuildClustersNets();
-    // id = cellVec.at(5)->clustering(cellVec.at(6));
-    // cellVec.at(id)->BuildClustersNets();
-    // id = cellVec.at(id)->clustering(cellVec.at(7));
     // cellVec.at(id)->BuildClustersNets();
 
-    // cellVec.at(id)->BuildClustersNets();
-
-    //after clustering, doing initial
-    InitialPartition_all1(cellVec);
-
-    //InitNets
-    InitNets(cellVec,netList);
-    // for(auto net:netList)showNet(net,cellVec);
-
-    // showCell(cellVec);
 
 
+    // //after clustering, doing initial
+    // InitialPartition_all1(cellVec);
 
-    // auto clusters = getClusterQ(cellVec);
-
-    // while(!clusters.empty())
-    // {
-    //     std::cout<<clusters.top()->clusterId<<"\n";
-    //     clusters.pop();
-    // }
-
-
-    // std::cout<<"start Fm\n";
-    FM(cellVec,netList,0.45,0.55);
-    // std::cout<<"end Fm\n";
-
+    // //InitNets
     // InitNets(cellVec,netList);
-    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    // Output(cellVec);
-    // for(auto net:netList)
-    //     delete net;
+    // // for(auto net:netList)showNet(net,cellVec);
+
+    // // showCell(cellVec);
+
+
+
+    // // std::cout<<"start Fm\n";
+    // FM(cellVec,netList,0.45,0.55);
+    // // std::cout<<"end Fm\n";
+
+    // // InitNets(cellVec,netList);
+    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    // // Output(cellVec);
+    // // for(auto net:netList)
+    // //     delete net;
 
 
     return 0;

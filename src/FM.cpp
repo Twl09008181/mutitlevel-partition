@@ -342,14 +342,14 @@ void RecoverToStage(std::vector<Cluster*>&cellVec,std::vector<int>&moveRecord,in
     }
 }
 
-ClusterQ getClusterQ(std::vector<Cluster*>&cellVec){
-    ClusterQ Q;
+dClusterQ getdClusterQ(std::vector<Cluster*>&cellVec){
+    dClusterQ Q;
     for(auto cell:cellVec)
         if(cell->getSize()>1&&cell->is_master())
             Q.push(cell);
     return Q;
 }
-std::vector<int>get_clusterID(ClusterQ &q,int size ){
+std::vector<int>get_dclusterID(dClusterQ &q,int size ){
     std::vector<int>clusterIds;
     clusterIds.reserve(size);
     for(int i = 0;i<size && !q.empty();++i,q.pop())
@@ -394,10 +394,10 @@ int OnePass(const OnepassArgs&args,ties *tie){
 }
 
 //return true if decluster happen.
-bool Decluster(ClusterQ&q,std::vector<Cluster*>&cellVec,std::list<Net*>&netlist,int size){
-    auto clusterIds = get_clusterID(q,size);
-    if(!clusterIds.empty()){
-        for(auto clst:clusterIds){
+bool Decluster(dClusterQ&q,std::vector<Cluster*>&cellVec,std::list<Net*>&netlist,int size){
+    auto dclusterIds = get_dclusterID(q,size);
+    if(!dclusterIds.empty()){
+        for(auto clst:dclusterIds){
             std::cout<<"dclust:"<<clst<<"\n";
             cellVec.at(clst)->decluster();
         }
@@ -421,7 +421,7 @@ void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float 
     int g1Num = group1Num(cellVec),g2Num = cellVec.size() - g1Num;
 
     //clustering Queue
-    auto clustersQ = getClusterQ(cellVec);
+    auto clustersQ = getdClusterQ(cellVec);
     bool canDecluster;
     int deClusterNum = totalNum/5;
 
