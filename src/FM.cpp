@@ -416,6 +416,7 @@ bool Decluster(std::queue<int>&declusterQ,std::vector<Cluster*>&cellVec,std::vec
     {
         if(cell->is_master())
         {
+            std::cout<<cell->id<<"is master\n";
             validnum++;
         }
     }

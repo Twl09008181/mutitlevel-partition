@@ -182,69 +182,73 @@ int main(int argc,char*argv[]){
 
     InitialPartition_all1(cellVec);
 
-    std::cout<<"start coarsen\n";
-    auto coarsenResult = Coarsen(cellVec,netList);
+    // std::cout<<"start coarsen\n";
+    // auto coarsenResult = Coarsen(cellVec,netList);
     
-    // Cluster *c1 = cellVec.at(0);
-    // Cluster *c2 = cellVec.at(1);
+    Cluster *c1 = cellVec.at(0);
+    Cluster *c2 = cellVec.at(1);
 
-    // Cluster *c3 = cellVec.at(2);
-    // Cluster *c4 = cellVec.at(3);
+    Cluster *c3 = cellVec.at(2);
+    Cluster *c4 = cellVec.at(3);
 
-    // Cluster *c5 = cellVec.at(4);
-    // std::cout<<"init------------------------------------\n";
-    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    Cluster *c5 = cellVec.at(4);
+    std::cout<<"init------------------------------------\n";
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
 
-    // c1->clustering(c2,1);
-    // std::cout<<"c1 cluster c2------------------------------------\n";
-    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    c1->clustering(c2,1);
+    std::cout<<"c1 cluster c2------------------------------------\n";
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
 
-    // c4->clustering(c3,2);
-    // std::cout<<"c4 cluster c3------------------------------------\n";
-    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-
-
-    // c5->clustering(c1,3);
-    // std::cout<<"c5 cluster c1------------------------------------\n";
-    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-
-    // c4->clustering(c5,4);
-    // std::cout<<"c4 cluster c5------------------------------------\n";
-    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    c4->clustering(c3,2);
+    std::cout<<"c4 cluster c3------------------------------------\n";
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
 
 
-    // std::queue<int>deQ;
-    // int valid = 0;
-    // for(int i = 0;i<5;i++)
-    // {
-    //     if(cellVec.at(i)->is_master()&&cellVec.at(i)->is_cluster()){
-    //         deQ.push(i);
-    //         valid++;
-    //     }
-    // }
-    // std::cout<<"flexible vertex num : "<<valid<<"\n";
+    c5->clustering(c1,3);
+    std::cout<<"c5 cluster c1------------------------------------\n";
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+
+    c4->clustering(c5,4);
+    std::cout<<"c4 cluster c5------------------------------------\n";
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
 
 
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,4);
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,3);
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,2);
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,1);
-    
-    std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
-    std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
-    std::cout<<"start Fm\n";
-    FM(cellVec,netList,0.45,0.55,coarsenResult.second);
-    std::cout<<"end Fm\n";
+    std::queue<int>deQ;
+    int valid = 0;
+    for(int i = 0;i<5;i++)
+    {
+        if(cellVec.at(i)->is_master()&&cellVec.at(i)->is_cluster()){
+            deQ.push(i);
+            valid++;
+        }
+    }
+    std::cout<<"flexible vertex num : "<<valid<<"\n";
 
-    // InitNets(cellVec,netList);
-    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    Output(cellVec);
-    for(auto net:netList)
-        delete net;
+
+    std::cout<<"decluster------------------------------------\n";
+    Decluster(deQ,cellVec,netList,4);
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+
+    std::cout<<"decluster------------------------------------\n";
+    Decluster(deQ,cellVec,netList,3);
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    std::cout<<"decluster------------------------------------\n";
+    Decluster(deQ,cellVec,netList,2);
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    std::cout<<"decluster------------------------------------\n";
+    Decluster(deQ,cellVec,netList,1);
+    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
+    // std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
+    // std::cout<<"start Fm\n";
+    // FM(cellVec,netList,0.45,0.55,coarsenResult.second);
+    // std::cout<<"end Fm\n";
+
+    // // InitNets(cellVec,netList);
+    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    // Output(cellVec);
+    // for(auto net:netList)
+    //     delete net;
 
 
     return 0;
@@ -367,6 +371,7 @@ void showCell(Cluster*c)
         std::cout<<"cluster id:"<<c->clusterId<<"\n";
         std::string gp = c->group1 ? "gp1":"gp2";
         std::cout<<"in "<<gp<<"\n";
+        std::cout<<"cell num:"<<c->cellsNum<<"\n";
         std::cout<<"nets:";
         
         for(auto n:c->getNets()){
