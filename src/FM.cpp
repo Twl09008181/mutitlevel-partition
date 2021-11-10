@@ -71,7 +71,7 @@ void Bucket::push_front(Cell*cell)
 }
 
 // O(maxPin) construct gainBucket
-void initGainBucket(std::vector<Cluster*>&cellVec,Bucket&b1,Bucket&b2)
+void initGainBucket(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Bucket&b1,Bucket&b2)
 {
     b1.gainVec.clear();b2.gainVec.clear();
 
@@ -92,8 +92,9 @@ void initGainBucket(std::vector<Cluster*>&cellVec,Bucket&b1,Bucket&b2)
         cell->gain = 0;
         if(!cell->isValid())continue;
         int gain = 0;
-        for(auto net : cell->getNetlist()){
-            auto From_To_Num = GroupNum(*net,cell);
+        for(auto net : cell->getNets()){
+            int nid = net.first;
+            auto From_To_Num = GroupNum(*netVec.at(nid),cell);
             if(From_To_Num.first==1) gain++;  //From set == 1 
             if(From_To_Num.second==0)gain--; //To set == 0
         }
@@ -134,18 +135,23 @@ void Net::addCells(Cell*cell){
     cells.push_front(cell->sortId);
     cell->group1 ? (group1+=cell->getSize()) : (group2+=cell->getSize());
 }
-void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets){
+
+
+
+
+void InitNets(std::vector<Cluster*>&cellVec,std::vector<Net*>&nets){
     // clear all
     for(auto n:nets){
         n->group1 = n->group2 = 0;
         n->cells.clear();
     }
     // build connect
-    // only contain Valid cell.
+    // only consider Valid cell.
     for(auto cell : cellVec){
         if(cell->isValid()){
-            for(auto net : cell->getNetlist())
-                net->addCells(cell);
+            for(auto net : cell->getNets()){
+                nets.at(net.first)->addCells(cell);
+            }
         }
     }
 }
@@ -169,11 +175,12 @@ void update(std::vector<Cluster*>&cellVec,Net*net,Cell*movingcell,std::pair<Buck
     }
 }
 
-void move(std::vector<Cluster*>&cellVec,int cellId,std::pair<Bucket*,Bucket*>&buckets){
+void move(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,int cellId,std::pair<Bucket*,Bucket*>&buckets){
     Cell* cell = cellVec.at(cellId);
     cell->group1 ? (buckets.first->erase(cell)):(buckets.second->erase(cell));
     bool from_group = cell->group1;
-    for(auto net : cell->getNetlist()){
+    for(auto netinfo : cell->getNets()){
+        Net* net = netVec.at(netinfo.first);
         auto From_To_Num = GroupNum(*net,cell);    
         int To = From_To_Num.second;
         if(To == 0) 
@@ -255,7 +262,7 @@ std::pair<std::pair<int,int>,std::pair<int,int>> getCandidate(std::pair<Bucket*,
 
 //first : move id
 //second : gain
-std::pair<int,int> oneMove(std::vector<Cluster*>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
+std::pair<int,int> oneMove(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie){
     auto candidates = getCandidate(buckets,ratios,groups,tie);// get
     if(candidates.first.first==-1 && candidates.second.first==-1)return candidates.first;// no cell can move
@@ -264,12 +271,12 @@ std::pair<int,int> oneMove(std::vector<Cluster*>&cellVec,std::pair<Bucket*,Bucke
     int gain1 = candidates.first.second, gain2 = candidates.second.second;
     bool moveGp1 = tie ? (tie(gain1,gain2,c1,c2) == c1): (gain1 >= gain2); // choose cell to move
     if(moveGp1){
-        move(cellVec,c1,buckets);
+        move(cellVec,netVec,c1,buckets);
         *groups.first  -= cellVec.at(c1)->getSize();
         *groups.second += cellVec.at(c1)->getSize();
         return {c1,gain1};
     }else{
-        move(cellVec,c2,buckets);
+        move(cellVec,netVec,c2,buckets);
         *groups.first  += cellVec.at(c2)->getSize();
         *groups.second -= cellVec.at(c2)->getSize();
         return {c2,gain2};
@@ -318,7 +325,7 @@ int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int ite
 }
 
 
-void RecoverToStage(std::vector<Cluster*>&cellVec,std::vector<int>&moveRecord,int bestIteration,int totalIteration,int&g1Num,int&g2Num){
+void RecoverToStage(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,std::vector<int>&moveRecord,int bestIteration,int totalIteration,int&g1Num,int&g2Num){
     for(int k = totalIteration; k > bestIteration;k--){
         int CellId = moveRecord.at(k);
         auto &cell = *cellVec.at(CellId);
@@ -326,14 +333,18 @@ void RecoverToStage(std::vector<Cluster*>&cellVec,std::vector<int>&moveRecord,in
         if(cell.group1){//now in group1, recover to group2
             g1Num-=size;
             g2Num+=size;
-            for(auto net:cell.getNetlist()){
+            for(auto netinfo:cell.getNets()){
+                int nid = netinfo.first;
+                Net* net = netVec.at(nid);
                 net->group1-=size;
                 net->group2+=size;
             }
         }else{
             g1Num+=size;
             g2Num-=size;
-            for(auto net:cell.getNetlist()){
+            for(auto netinfo:cell.getNets()){
+                int nid = netinfo.first;
+                Net* net = netVec.at(nid);
                 net->group1+=size;
                 net->group2-=size;
             }
@@ -342,20 +353,6 @@ void RecoverToStage(std::vector<Cluster*>&cellVec,std::vector<int>&moveRecord,in
     }
 }
 
-dClusterQ getdClusterQ(std::vector<Cluster*>&cellVec){
-    dClusterQ Q;
-    for(auto cell:cellVec)
-        if(cell->getSize()>1&&cell->is_master())
-            Q.push(cell);
-    return Q;
-}
-std::vector<int>get_dclusterID(dClusterQ &q,int size ){
-    std::vector<int>clusterIds;
-    clusterIds.reserve(size);
-    for(int i = 0;i<size && !q.empty();++i,q.pop())
-        clusterIds.push_back(q.top()->clusterId);
-    return clusterIds;
-}
 
 void preCheckConstraint(int totalNum,float ratio1,float ratio2)
 {
@@ -373,6 +370,7 @@ struct OnepassArgs{
     std::vector<float>*RatioRecord;
 
     std::vector<Cluster*>*CellVec;
+    std::vector<Net*>*NetVec;
     std::pair<Bucket*,Bucket*>buckets;
     std::pair<float,float>ratios;
     std::pair<int*,int*>groups;
@@ -383,7 +381,7 @@ struct OnepassArgs{
 int OnePass(const OnepassArgs&args,ties *tie){
     int k = 1,gain = 0;
     for(; k <= args.CellVec->size() ; k++){
-        auto pass = oneMove(*args.CellVec,args.buckets,args.ratios,args.groups,tie);
+        auto pass = oneMove(*args.CellVec,*args.NetVec,args.buckets,args.ratios,args.groups,tie);
         if(pass.first == -1)break; // no cell can move.
         gain += pass.second;
         args.GainAcc->at(k) = gain;
@@ -394,23 +392,42 @@ int OnePass(const OnepassArgs&args,ties *tie){
 }
 
 //return true if decluster happen.
-bool Decluster(dClusterQ&q,std::vector<Cluster*>&cellVec,std::list<Net*>&netlist,int size){
-    auto dclusterIds = get_dclusterID(q,size);
-    if(!dclusterIds.empty()){
-        for(auto clst:dclusterIds){
-            std::cout<<"dclust:"<<clst<<"\n";
-            cellVec.at(clst)->decluster();
+bool Decluster(std::queue<int>&declusterQ,std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase){
+
+    if(declusterQ.empty()||phase<=0)return false;
+
+    
+    std::queue<int>nextstage;
+
+    while(!declusterQ.empty()){
+        int cid = declusterQ.front();
+        declusterQ.pop();
+        for(auto clst:cellVec.at(cid)->decluster(phase)){
+            // std::cout<<clst<<" is released\n";
+            nextstage.push(clst);
         }
-        InitNets(cellVec,netlist);
-        return true;
+        if(cellVec.at(cid)->is_cluster())
+           nextstage.push(cid);
     }
-    else{
-        InitNets(cellVec,netlist);
-        return false;
+
+
+    int validnum = 0;
+    for(auto cell:cellVec)
+    {
+        if(cell->is_master())
+        {
+            validnum++;
+        }
     }
+    std::cout<<"after decluster,validNum:"<<validnum<<"\n";
+
+    
+    InitNets(cellVec,netlist);
+    declusterQ = std::move(nextstage);
+    return true;
 }
 
-void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie){
+void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,float ratio2,int phase,ties*tie){
     // pre-check ratio constraints.
     int totalNum = cellVec.size();
     preCheckConstraint(totalNum,ratio1,ratio2);
@@ -422,36 +439,54 @@ void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float 
     // maintain groupNumber information for caculating ratio
     int g1Num = group1Num(cellVec),g2Num = cellVec.size() - g1Num;
 
-    //clustering Queue
-    auto clustersQ = getdClusterQ(cellVec);
-    bool canDecluster;
-    int deClusterNum = 10;
 
     int maxGain;
     int cut = CutSize(netlist);
     std::cout<<"origin cutsize:"<<cut<<"\n";
 
+  int validNum = 0;
+    std::queue<int>declusertQ;
+    for(auto cell:cellVec){
+        if(cell->is_master()&&cell->is_cluster()){
+            declusertQ.push(cell->clusterId);
+            validNum++;
+        }
+    }
+
+    std::cout<<"valid:"<<validNum<<"\n";
+
+
     do{
         Bucket b1,b2;
         // init GainBucket every iteration.
-        initGainBucket(cellVec,b1,b2);
+        initGainBucket(cellVec,netlist,b1,b2);
 
         gainAcc.at(0) = 0;
         // OnePass
-        int totalIteration = OnePass(OnepassArgs{&gainAcc,&moveRecord,&ratioRecord,&cellVec,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num}},tie);
+        int totalIteration = OnePass(OnepassArgs{&gainAcc,&moveRecord,&ratioRecord,&cellVec,&netlist,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num}},tie);
 
         // Pick best state 
         int bestIteration = getBestStage(gainAcc,ratioRecord,totalIteration,{ratio1,ratio2});
         maxGain = gainAcc.at(bestIteration);
 
         // Recover state to bestIteration.
-        RecoverToStage(cellVec,moveRecord,bestIteration,totalIteration,g1Num,g2Num);
+        RecoverToStage(cellVec,netlist,moveRecord,bestIteration,totalIteration,g1Num,g2Num);
         std::cout<<"maxGain:"<<maxGain<<"\n";
         std::cout<<"cut size:"<<CutSize(netlist);
-    }while(maxGain > 0 || Decluster(clustersQ,cellVec,netlist,deClusterNum));
+    }while(maxGain > 0 || Decluster(declusertQ,cellVec,netlist,phase--));
+
+    validNum = 0;
+    for(auto cell:cellVec)
+    {
+        if(cell->isValid())validNum++;
+
+    }
+    std::cout<<"valid num:"<<validNum<<"\n";
+
+
 // 
 }
-int CutSize(std::list<Net*>&net){
+int CutSize(std::vector<Net*>&net){
     int cut = 0;
     for(auto n:net){
         if(n->group1&&n->group2)
@@ -462,7 +497,7 @@ int CutSize(std::list<Net*>&net){
 
 
 
-int Cluster::clustering(Cluster*v){
+int Cluster::clustering(Cluster*v,int phase){
 
     if(v==nullptr||!v->is_master()){
         std::cerr<<"warning in clustering, input v is invalid\n";
@@ -474,80 +509,63 @@ int Cluster::clustering(Cluster*v){
         return this->clusterId;
     }
 
-    //flag setting
-    this->valid = false;
-    this->iscluster = true;
-    // cluster
-    for(auto c:v->cells){
-        this->cells.push_back(c);
-        c->clusterId = this->clusterId; // bug-Fix
-        c->iscluster = false;
-        this->cellsNum++;
-        c->valid = false;
-        c->group1 = this->group1; //Buf-FIX
-    }
-    //set1 is bigger than set2
-    auto &set1 = (netNum >= v->netNum) ? this->clustersNetSet :v->clustersNetSet;
-    auto &set2 = (netNum >= v->netNum) ? v->clustersNetSet : this->clustersNetSet;
+    // Cluster all cells.   (setting flag is enough.)
+    v->valid = false; // not valid until decluster
+    v->clusterId = this->clusterId; //not a cluster master ever.
+    v->clusterPhase = phase; // saving cluster phase for declustering.
+    // this->iscluster = true;
+    this->cells.push_back(v);   //add only v,do not add v's cells.
+    this->cellsNum+=v->cellsNum;
     
-    for(auto net:set2)
-        if(set1.find(net)==set1.end())
-            set1.insert(net);
-
-    if(&clustersNetSet != &set1)  //carefully
-        this->clustersNetSet = std::move(set1);
-    //not necessary op
-    v->clustersNetSet.clear();
-    v->clustersNets.clear();
+    // update the NetSet.
+    int newNetNum = 0;
+    auto hint = NetSet.begin();
+    for(auto net:v->NetSet){  //v->Netset is sorted,can use hint for speeding up.
+        auto pos = NetSet.find(net.first);
+        if(pos ==NetSet.end()){
+            hint = NetSet.insert(hint,net);
+            newNetNum++;
+        }
+        else{
+            pos->second++;
+        }
+    }
+    this->netNum += newNetNum;
     return this->clusterId;
 }
-#include <algorithm>
-void Cluster::BuildClustersNets(){  
-    if(is_master()&&is_cluster()){
-        netNum = 0;
-        clustersNets.clear();
 
-        std::vector<Net*>nets;
-        nets.reserve(clustersNetSet.size());
-        for(auto net:clustersNetSet){
-            // clustersNets.push_front(net);
-            nets.push_back(net);
-            netNum++;
-        }
-        std::sort(nets.begin(),nets.end(),[](Net*n1,Net*n2){return n1->NetId < n2->NetId;});//保持順序比較好找bug
 
-        for(auto net:nets)
-            clustersNets.push_back(net);
-
-        valid = true;
-    }else{
-        std::cerr<<"warning !  \
-        only cluster master need call void BuildClustersNets()\n";
-    }
-}
-
-void Cluster::decluster(){
+std::vector<int> Cluster::decluster(int phase){
+    
     if(is_master()){
-        clustersNetSet.clear();
-        clustersNets.clear();
-        for(auto c : cells){
-            if(c!=this){
-                c->cells.clear();
-                c->cells.push_front(c);
+        std::vector<int>declusterID;
+        std::list<Cluster*>remain;
+        for(Cluster* cell : cells){
+            if(cell != this && cell->clusterPhase == phase){//the specified phase.
+                cell->valid = true;
+                cell->clusterId = cell->sortId;
+                // cell->iscluster = cell->cellsNum > 1;
+                cell->group1 = this->group1; // important
+                cell->clusterPhase = -1; 
+                for(auto net:cell->getNets()){
+                    auto it = this->NetSet.find(net.first);
+                    if(!(--it->second))
+                        this->NetSet.erase(it);
+                }
+                declusterID.push_back(cell->clusterId);
+                this->cellsNum-=cell->cellsNum;
             }
-            c->cellsNum = 1;
-            c->valid = true;
-            c->iscluster = false;
-            c->clusterId = c->sortId;
-            c->netNum = c->originNetNum;
-            c->group1 = this->group1; // important 
-            for(auto net:c->nets)  //not necessary,but for safe.
-                c->clustersNetSet.insert(net);
-            
+            else{
+                remain.push_back(cell);
+            }
         }
         cells.clear();
-        cells.push_front(this);
+        cells = std::move(remain);
+      
+        return declusterID;
     }else{
         std::cerr<<"void Cluster::decluster() warning, cell "<<sortId<<" is not a cluster master\n";
+        std::cerr<<"masterid : "<<clusterId<<"\n";
+        return {};
     }
 }

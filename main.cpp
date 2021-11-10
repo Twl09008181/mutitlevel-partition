@@ -12,9 +12,11 @@
 #include <float.h>
 #include <omp.h>
 
-std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &filename);
+std::pair<std::vector<Cluster*>,std::vector<Net*>> parser(const std::string &filename);
 
 void SortById(std::vector<Cluster*>&cellVec);
+void SortById(std::vector<Net*>&netVec);
+
 void InitialPartition_all1(std::vector<Cluster*>&cellVec);
 void Output(std::vector<Cluster*>&cellVec);
 
@@ -55,7 +57,7 @@ std::list<Net*> intersections(std::vector<Net*>&v1,std::vector<Net*>&v2)
 }
 
 
-std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,Cluster*cell,std::vector<bool>&mark)
+std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Cluster*cell,std::vector<bool>&mark)
 {
     int closet = -1;//if return is -1 , then cell has no neighbor.
     float score = -FLT_MAX;
@@ -63,7 +65,8 @@ std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,Cluster*cell,std::v
     std::unordered_map<int,int>neighbors;//quickly find neighbors.
 
     std::list<int>Neighbors;
-    for(auto net:cell->getNetlist()){
+    for(auto netinfo:cell->getNets()){
+        Net* net = netVec.at(netinfo.first);
         NetsRecord.push_back(net);
         for(auto neighbor:net->cells)
         {
@@ -77,7 +80,7 @@ std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,Cluster*cell,std::v
 
         // get Net 
         std::vector<Net*>n_NetsRecord;n_NetsRecord.reserve(n->netNum);
-        for(auto net:n->getNetlist())n_NetsRecord.push_back(net);
+        for(auto netinfo:n->getNets())n_NetsRecord.push_back(netVec.at(netinfo.first));
  
         // get intersections
         auto inters = intersections(NetsRecord,n_NetsRecord);
@@ -97,7 +100,7 @@ std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,Cluster*cell,std::v
 }
 
 //return cellNum after coarsen
-int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::list<Net*>&netlist){
+int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase){
 
    
 
@@ -113,7 +116,7 @@ int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::list<Net*>&netlist){
         {
             Cluster& cell = *cellVec.at(i);
             if(cell.isValid() && !mark.at(i)){
-                auto closet = getCloset(cellVec,&cell,mark);
+                auto closet = getCloset(cellVec,netlist,&cell,mark);
                 if(closet.first==-1)continue;
                 mark.at(i) = true;
                 mark.at(closet.first) = true;
@@ -130,32 +133,32 @@ int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::list<Net*>&netlist){
             int cluserId2 = cellVec.at(closetId.at(i))->clusterId;
             Cluster* c1 = cellVec.at(cluserId1);
             Cluster* c2 = cellVec.at(cluserId2);
-            clusterId.push_front(c1->clustering(c2));
+            clusterId.push_front(c1->clustering(c2,phase));
         }
     }
-    
     int Num = 0;
-    for(auto id:clusterId){
-        if(cellVec.at(id)->is_master()){
-            cellVec.at(id)->BuildClustersNets();
+    for(auto cell:cellVec){
+        if(cell->is_master()){
             Num++;
         }
     }
-
     return Num;
 }
 
 
-int Coarsen(std::vector<Cluster*>&cellVec,std::list<Net*>&netlist){
+//remain vertex num , total phase
+std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist){
 
     int targetNum = 100;
     int num;
-    while((num=EdgeCoarsen(cellVec,netlist))>targetNum)
+    int phase = 0;
+    while((num = EdgeCoarsen(cellVec,netlist,++phase))>targetNum)
     {
         std::cout<<"num:"<<num<<"\n";
     }
+    std::cout<<"num:"<<num<<"\n";
     InitNets(cellVec,netlist);
-    return num;
+    return {num,phase};
 }
 
 
@@ -175,13 +178,67 @@ int main(int argc,char*argv[]){
     auto cellVec = info.first;
     auto netList = info.second;
     SortById(cellVec); // sort 
+    SortById(netList);
+
     InitialPartition_all1(cellVec);
 
-    int num = Coarsen(cellVec,netList);
-    std::cout<<"Coarsen to only "<<num<<" cells\n";
-    // std::cout<<"start Fm\n";
-    FM(cellVec,netList,0.45,0.55);
-    // std::cout<<"end Fm\n";
+    std::cout<<"start coarsen\n";
+    auto coarsenResult = Coarsen(cellVec,netList);
+    
+    // Cluster *c1 = cellVec.at(0);
+    // Cluster *c2 = cellVec.at(1);
+
+    // Cluster *c3 = cellVec.at(2);
+    // Cluster *c4 = cellVec.at(3);
+
+    // Cluster *c5 = cellVec.at(4);
+    // std::cout<<"init------------------------------------\n";
+    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+
+    // c1->clustering(c2,1);
+    // std::cout<<"c1 cluster c2------------------------------------\n";
+    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+
+    // c4->clustering(c3,2);
+    // std::cout<<"c4 cluster c3------------------------------------\n";
+    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+
+
+    // c5->clustering(c1,3);
+    // std::cout<<"c5 cluster c1------------------------------------\n";
+    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+
+    // c4->clustering(c5,4);
+    // std::cout<<"c4 cluster c5------------------------------------\n";
+    // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+
+
+    // std::queue<int>deQ;
+    // int valid = 0;
+    // for(int i = 0;i<5;i++)
+    // {
+    //     if(cellVec.at(i)->is_master()&&cellVec.at(i)->is_cluster()){
+    //         deQ.push(i);
+    //         valid++;
+    //     }
+    // }
+    // std::cout<<"flexible vertex num : "<<valid<<"\n";
+
+
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,4);
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,3);
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,2);
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,1);
+    
+    std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
+    std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
+    std::cout<<"start Fm\n";
+    FM(cellVec,netList,0.45,0.55,coarsenResult.second);
+    std::cout<<"end Fm\n";
 
     // InitNets(cellVec,netList);
     std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
@@ -193,7 +250,7 @@ int main(int argc,char*argv[]){
     return 0;
 }
 
-std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &fileName){
+std::pair<std::vector<Cluster*>,std::vector<Net*>> parser(const std::string &fileName){
    std::ifstream input{fileName};
 
    if(!input){std::cerr<<"can't open"<<fileName<<"\n";} 
@@ -208,12 +265,12 @@ std::pair<std::vector<Cluster*>,std::list<Net*>> parser(const std::string &fileN
     std::string line;         
     std::getline(input,line);//清掉空白
 
-    std::list<Net*>nets;
+    std::vector<Net*>nets;nets.reserve(NetsNum);
     
     //read nets
     for(int i = 1;i <= NetsNum;i++)
     {
-        Net * net = new Net{i};
+        Net * net = new Net{i-1};//sorted id 
         nets.push_back(net);
         // line process
         std::string line;
@@ -312,8 +369,8 @@ void showCell(Cluster*c)
         std::cout<<"in "<<gp<<"\n";
         std::cout<<"nets:";
         
-        for(auto n:c->getNetlist()){
-            std::cout<<n->NetId<<" ";
+        for(auto n:c->getNets()){
+            std::cout<<n.first<<" ";
         }
         std::cout<<"\n\n";
 }
@@ -339,8 +396,8 @@ void showCell(std::vector<Cluster*>&cellVec)
         out<<"nets:";
         if(c->is_master()){
             std::vector<int>Netsid;Netsid.reserve(c->netNum);
-            for(auto n:c->getNetlist()){
-                Netsid.push_back(n->NetId);
+            for(auto n:c->getNets()){
+                Netsid.push_back(n.first);
             }
             // std::sort(Netsid.begin(),Netsid.end());
 
@@ -349,8 +406,8 @@ void showCell(std::vector<Cluster*>&cellVec)
         }
         else{
             std::vector<int>Netsid;Netsid.reserve(c->netNum);
-           for(auto n:c->nets){
-                Netsid.push_back(n->NetId);
+           for(auto n:c->getNets()){
+                Netsid.push_back(n.first);
             }
             // std::sort(Netsid.begin(),Netsid.end());
 
@@ -370,7 +427,11 @@ void SortById(std::vector<Cluster*>&cellVec){
         cellVec.at(sortId)->setSortId(sortId);
     }//store sortId 
 }
-
+void SortById(std::vector<Net*>&netVec){
+    std::sort(netVec.begin(),netVec.end(),[](Net*c1,Net*c2){return c1->NetId < c2->NetId;});//sorted by cellId
+    for(int i = 0;i<netVec.size();i++)
+        netVec.at(i)->NetId = i;
+}
 
 
 void debugInfo(std::vector<Cluster*>&cell){

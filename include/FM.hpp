@@ -5,6 +5,7 @@
 #include <utility>
 #include <vector>
 #include <set>
+#include <map>
 #include <iostream>
 #include <queue>
 
@@ -25,20 +26,16 @@ struct Cell{
     int id;//編號不一定會是從1~node的總數
     int sortId;
     bool group1 = false;
-    std::list<Net*>nets;
     int netNum = 0;
-    virtual void addNet(Net*net){nets.push_front(net);netNum++;}
-
-
+    std::map<int,int>NetSet;//net id , second is for cluster
+    virtual void addNet(Net*net){NetSet.insert({net->NetId,1});netNum++;}
     // bucket relative
     int gain = 0;
     bool freeze = true;
     std::list<int>::iterator it;//to access gain bucket.
-
-
-    virtual std::list<Net*>getNetlist(){return nets;}
+    std::map<int,int>& getNets(){return NetSet;}
     virtual bool isValid(){return true;}
-    virtual int getSize()const{return 1;}  //bug 1 ........................
+    virtual int getSize()const{return 1;}  
 };//using std::vector<Cell> to save all Cells.   
 
 
@@ -49,77 +46,47 @@ class Cluster : public Cell{
 public:
     Cluster(int realid){
         id = realid;
-        // cluster relative
+        // cluster relative flag.
         cells.push_front(this);
         valid = true;
         iscluster = false;
         clusterId = sortId = -1;
         cellsNum = 1;
     }
-    void setSortId(int sortedId){
-        clusterId = sortId = sortedId;
-    }
-    bool is_master(){
-        return sortId==clusterId;
-    }
+
+    void setSortId(int sortedId){clusterId = sortId = sortedId;}
+    bool is_master(){return sortId==clusterId;}
+    bool is_cluster(){return cellsNum > 1;}//only one cell is not a cluster.
+
     // cluster relative member
     int clusterId;
     bool valid;//cluster or non-cluster single valid cell. 
-    bool iscluster;//decluster後set false,cluster後 set true.
-    std::list<Cluster*>cells;//紀錄存了哪些cell,decluster需要
-    int originNetNum = 0;//decluster時會用到
-
+    bool iscluster;
+    std::list<Cluster*>cells;//紀錄存了哪些cluster 
+    int originNetNum = 0;//當變為non-cluster時會用到
     int cellsNum;//maintain for quickly get size.
+    int clusterPhase = -1;//used to decluster
+    
 
-    bool is_cluster(){return iscluster;}//only one cell.
     // update cluster member
-    int clustering(Cluster*v);//return id
-    void decluster();
-
-
-
-    // after all clustering is done
-    // put nets in clustersNetSet into clustersNets
-    void BuildClustersNets();
+    int clustering(Cluster*v,int phase);//return id
+    std::vector<int> decluster(int phase);
 
 
     // inherint functions
     int getSize()const{return cellsNum;}
-
     bool isValid(){
         if(is_master()&&!valid){std::cerr<<"isValid warning, a cluster ,master is always valid,you may need to check if you have already call BuildClustersNets\n";}
         return valid;
     }
     void addNet(Net*net){
-        if(iscluster){std::cerr<<"warrning,this cell is already a cluster, use addNet may causing some unexpected result.\n";}
-        nets.push_front(net);
-        clustersNetSet.insert(net);
-        netNum++;
-    }
-    std::list<Net*>getNetlist(){
-        if(is_master())
-            return (iscluster) ? clustersNets : nets;
-        else{
-            std::cerr<<"netNelist warning, "<<sortId<<" is not a cluster master\n";
-            return nets;
-        }
-    }
-private:
-    std::set<Net*>clustersNetSet;
-    std::list<Net*>clustersNets;//FM需要整個Nets
-};
-
-struct clusterCmp
-{
-    bool operator()(const Cluster*c1,const Cluster*c2)const{
-        return c1->getSize() < c2->getSize();
+        if(is_cluster()){std::cerr<<"warrning,this cell is already a cluster, use addNet may causing some unexpected result.\n";}
+        NetSet.insert({net->NetId,1});netNum++;
     }
 };
-using dClusterQ = std::priority_queue<Cluster*,std::vector<Cluster*>,clusterCmp>;
-dClusterQ getdClusterQ(std::vector<Cluster*>&cellVec);
-std::vector<int>get_dclusterID(dClusterQ &q,int size );
 
-void InitNets(std::vector<Cluster*>&cellVec,std::list<Net*>&nets);
+
+void InitNets(std::vector<Cluster*>&cellVec,std::vector<Net*>&nets);
 
 // <from part,to part>
 inline std::pair<int,int> GroupNum(const Net& net,const Cell* cell){
@@ -147,8 +114,11 @@ struct Bucket{
 std::pair<int,int> onePass(std::vector<Cluster*>&cellVec,std::pair<Bucket*,Bucket*>buckets,\
     std::pair<float,float>ratios,std::pair<int*,int*>groups,ties *tie = nullptr);
 
-void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float ratio2,ties*tie = nullptr);
+void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,float ratio2,int phase,ties*tie = nullptr);
 
-int CutSize(std::list<Net*>&net);
+int CutSize(std::vector<Net*>&net);
+
+
+bool Decluster(std::queue<int>&declusterQ,std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase);
 
 #endif
