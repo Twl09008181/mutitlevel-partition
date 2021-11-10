@@ -20,9 +20,8 @@ void SortById(std::vector<Net*>&netVec);
 void InitialPartition_all1(std::vector<Cluster*>&cellVec);
 void Output(std::vector<Cluster*>&cellVec);
 
-void showNet(Net*net,std::vector<Cluster*>&cellVec,std::ofstream&out);
-
-
+void showNet(Net*net,std::vector<Cluster*>&cellVec);
+void showNet(std::vector<Net*>net,std::vector<Cluster*>&cellVec);
 void showCell(std::vector<Cluster*>&cellVec);
 
 void showCell(Cluster*c);
@@ -149,7 +148,7 @@ int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phas
 //remain vertex num , total phase
 std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist){
 
-    int targetNum = 100;
+    int targetNum = 2;
     int num;
     int phase = 0;
     while((num = EdgeCoarsen(cellVec,netlist,++phase))>targetNum)
@@ -182,73 +181,85 @@ int main(int argc,char*argv[]){
 
     InitialPartition_all1(cellVec);
 
-    // std::cout<<"start coarsen\n";
-    // auto coarsenResult = Coarsen(cellVec,netList);
+    std::cout<<"start coarsen\n";
+    auto coarsenResult = Coarsen(cellVec,netList);
     
-    Cluster *c1 = cellVec.at(0);
-    Cluster *c2 = cellVec.at(1);
+    // Cluster *c1 = cellVec.at(0);
+    // Cluster *c2 = cellVec.at(1);
 
-    Cluster *c3 = cellVec.at(2);
-    Cluster *c4 = cellVec.at(3);
+    // Cluster *c3 = cellVec.at(2);
+    // Cluster *c4 = cellVec.at(3);
 
-    Cluster *c5 = cellVec.at(4);
-    std::cout<<"init------------------------------------\n";
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // Cluster *c5 = cellVec.at(4);
+    // std::cout<<"init------------------------------------\n";
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec);
+    // c1->clustering(c2,1);
+    // std::cout<<"c1 cluster c2------------------------------------\n";
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec); 
 
-    c1->clustering(c2,1);
-    std::cout<<"c1 cluster c2------------------------------------\n";
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-
-    c4->clustering(c3,2);
-    std::cout<<"c4 cluster c3------------------------------------\n";
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-
-
-    c5->clustering(c1,3);
-    std::cout<<"c5 cluster c1------------------------------------\n";
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-
-    c4->clustering(c5,4);
-    std::cout<<"c4 cluster c5------------------------------------\n";
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // c4->clustering(c3,2);
+    // std::cout<<"c4 cluster c3------------------------------------\n";
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec);
 
 
-    std::queue<int>deQ;
-    int valid = 0;
-    for(int i = 0;i<5;i++)
-    {
-        if(cellVec.at(i)->is_master()&&cellVec.at(i)->is_cluster()){
-            deQ.push(i);
-            valid++;
-        }
+    // c5->clustering(c1,3);
+    // std::cout<<"c5 cluster c1------------------------------------\n";
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec);
+
+    // c4->clustering(c5,4);
+    // std::cout<<"c4 cluster c5------------------------------------\n";
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec);
+
+
+    // std::queue<int>deQ;
+    // int valid = 0;
+    // for(int i = 0;i<5;i++)
+    // {
+    //     if(cellVec.at(i)->is_master()&&cellVec.at(i)->is_cluster()){
+    //         deQ.push(i);
+    //         valid++;
+    //     }
+    // }
+    // std::cout<<"flexible vertex num : "<<valid<<"\n";
+
+
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,4);
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec);
+
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,3);
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec);
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,2);
+    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
+    // showNet(netList,cellVec);
+    // std::cout<<"decluster------------------------------------\n";
+    // Decluster(deQ,cellVec,netList,1);
+    // showNet(netList,cellVec);
+
+    for(int i= 0;i<cellVec.size();i++){
+        if(cellVec.at(i)->isValid())
+        showCell(cellVec.at(i));
     }
-    std::cout<<"flexible vertex num : "<<valid<<"\n";
-
-
-    std::cout<<"decluster------------------------------------\n";
-    Decluster(deQ,cellVec,netList,4);
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-
-    std::cout<<"decluster------------------------------------\n";
-    Decluster(deQ,cellVec,netList,3);
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    std::cout<<"decluster------------------------------------\n";
-    Decluster(deQ,cellVec,netList,2);
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    std::cout<<"decluster------------------------------------\n";
-    Decluster(deQ,cellVec,netList,1);
-    for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
-    // std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
-    // std::cout<<"start Fm\n";
-    // FM(cellVec,netList,0.45,0.55,coarsenResult.second);
-    // std::cout<<"end Fm\n";
+    std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
+    std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
+    std::cout<<"start Fm\n";
+    FM(cellVec,netList,0.45,0.55,coarsenResult.second);
+    std::cout<<"end Fm\n";
 
     // // InitNets(cellVec,netList);
-    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
-    // Output(cellVec);
-    // for(auto net:netList)
-    //     delete net;
+    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    Output(cellVec);
+    for(auto net:netList)
+        delete net;
 
 
     return 0;
@@ -336,31 +347,55 @@ void Output(std::vector<Cluster*>&cellVec){
         out << c->group1 <<"\n";
     out.close();
 }
-void showNet(Net*net,std::vector<Cluster*>&cellVec,std::ofstream&out)
+void showNet(std::vector<Net*>net,std::vector<Cluster*>&cellVec)
+{
+    InitNets(cellVec,net);
+    for(auto n:net)
+        showNet(n,cellVec);
+}
+void showNet(Net*net,std::vector<Cluster*>&cellVec)
 {
 
     
-
-
-    out<<"Net"<<net->NetId<<"\n";
-    out<<"total cells:"<<net->cells.size()<<"\n";
-    out<<"group1:"<<net->group1<<" group2 "<<net->group2<<"\n";
+    std::cout<<"Net"<<net->NetId<<"\n";
+    std::cout<<"total cells:"<<net->cells.size()<<"\n";
+    std::cout<<"group1:"<<net->group1<<" group2 "<<net->group2<<"\n";
     for(auto c:net->cells){
 
         auto cell = cellVec.at(c); 
         if(!cell->isValid())continue;
 
         if(cell->is_master()){
-            out<<c<<" is a cluster master,cells : ";
+            std::cout<<c<<" is a cluster master,cells : ";
             for(auto cells:cell->cells)
-                out<<cells->sortId<<" ";
+                std::cout<<cells->sortId<<" ";
         }
         else{
-            out<<c<<" ";
+            std::cout<<c<<" ";
         }
-        out<<"\n";
+        std::cout<<"\n";
     }
-    out<<"\n";
+    std::cout<<"\n";
+
+    // out<<"Net"<<net->NetId<<"\n";
+    // out<<"total cells:"<<net->cells.size()<<"\n";
+    // out<<"group1:"<<net->group1<<" group2 "<<net->group2<<"\n";
+    // for(auto c:net->cells){
+
+    //     auto cell = cellVec.at(c); 
+    //     if(!cell->isValid())continue;
+
+    //     if(cell->is_master()){
+    //         out<<c<<" is a cluster master,cells : ";
+    //         for(auto cells:cell->cells)
+    //             out<<cells->sortId<<" ";
+    //     }
+    //     else{
+    //         out<<c<<" ";
+    //     }
+    //     out<<"\n";
+    // }
+    // out<<"\n";
 }
 
 void showCell(Cluster*c)

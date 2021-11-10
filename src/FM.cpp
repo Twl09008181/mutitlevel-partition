@@ -76,8 +76,7 @@ void initGainBucket(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Bucke
     b1.gainVec.clear();b2.gainVec.clear();
 
     // Allocate
-    static int maxPin = 0;
-    if(maxPin == 0 )
+    int maxPin = 0;
     for(auto cell:cellVec) maxPin = std::max(cell->netNum,maxPin);
 
     int size = maxPin * 2 + 1;
@@ -94,9 +93,10 @@ void initGainBucket(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Bucke
         int gain = 0;
         for(auto net : cell->getNets()){
             int nid = net.first;
+            int net_cellNum = netVec.at(nid)->cells.size();//differ to "really size", is "cluster or cell number"   
             auto From_To_Num = GroupNum(*netVec.at(nid),cell);
-            if(From_To_Num.first==1) gain++;  //From set == 1 
-            if(From_To_Num.second==0)gain--; //To set == 0
+            if(From_To_Num.first==1&&net_cellNum !=1) gain++;  //From set == 1 
+            if(From_To_Num.second==0&&net_cellNum !=1)gain--; //To set == 0
         }
         cell->gain = gain;
         cell->group1 ? b1.push_front(cell) : b2.push_front(cell);
@@ -160,6 +160,10 @@ void InitNets(std::vector<Cluster*>&cellVec,std::vector<Net*>&nets){
 void update(std::vector<Cluster*>&cellVec,Net*net,Cell*movingcell,std::pair<Bucket*,Bucket*>&buckets,bool group1,bool increment,bool onlyOne){
     for(auto cellId:net->cells){
         Cell* cell = cellVec.at(cellId);// get cell        
+        if(!cell->isValid())
+        {
+            std::cerr<<"error\n";exit(1);
+        }
         if(cell != movingcell && group1 == cell->group1){ // the specified group.
             if(cell->freeze){
                 if(onlyOne)break;
@@ -181,15 +185,16 @@ void move(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,int cellId,std:
     bool from_group = cell->group1;
     for(auto netinfo : cell->getNets()){
         Net* net = netVec.at(netinfo.first);
-        auto From_To_Num = GroupNum(*net,cell);    
+        auto From_To_Num = GroupNum(*net,cell); 
+        int net_cellNum = net->cells.size();//differ to "really size", is "cluster or cell number"   
         int To = From_To_Num.second;
-        if(To == 0) 
+        if(To == 0 && net_cellNum!=1)//not only one cell 
             update(cellVec,net,cell,buckets,from_group,true,false);//increment "from group" cells's gain. 
         else if (To == 1) // if to == 1
             update(cellVec,net,cell,buckets,!from_group,false,true);//decrement "to group" cell's gain. 
         //assume move
         int From = From_To_Num.first - 1;
-        if(From == 0) // if From ==0
+        if(From == 0 && net_cellNum!=1) // if From ==0
             update(cellVec,net,cell,buckets,!from_group,false,false);//decrement "to group" cells's gain. 
         else if (From == 1) // if From == 1
             update(cellVec,net,cell,buckets,from_group,true,true);//increment "from group" cell's gain. 
@@ -416,7 +421,7 @@ bool Decluster(std::queue<int>&declusterQ,std::vector<Cluster*>&cellVec,std::vec
     {
         if(cell->is_master())
         {
-            std::cout<<cell->id<<"is master\n";
+            // std::cout<<cell->id<<"is master\n";
             validnum++;
         }
     }
@@ -462,6 +467,11 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
         // init GainBucket every iteration.
         initGainBucket(cellVec,netlist,b1,b2);
 
+        std::cout<<"b1\n";
+        showGainBucket(&b1,cellVec);
+        std::cout<<"b2\n";
+        showGainBucket(&b2,cellVec);
+
         gainAcc.at(0) = 0;
         // OnePass
         int totalIteration = OnePass(OnepassArgs{&gainAcc,&moveRecord,&ratioRecord,&cellVec,&netlist,{&b1,&b2},{ratio1,ratio2},{&g1Num,&g2Num}},tie);
@@ -473,7 +483,7 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
         // Recover state to bestIteration.
         RecoverToStage(cellVec,netlist,moveRecord,bestIteration,totalIteration,g1Num,g2Num);
         std::cout<<"maxGain:"<<maxGain<<"\n";
-        std::cout<<"cut size:"<<CutSize(netlist);
+        std::cout<<"cut size:"<<CutSize(netlist)<<"\n";
     }while(maxGain > 0 || Decluster(declusertQ,cellVec,netlist,phase--));
 
     validNum = 0;
