@@ -475,9 +475,10 @@ int Cluster::clustering(Cluster*v){
     // v->cellsNum = this->cellsNum;
 
     // cluster
-    for(auto c:v->cells)
+    for(auto c:v->cells){
         this->cells.push_back(c);
-
+        c->clusterId = this->clusterId; // bug-Fix
+    }
     //set1 is bigger than set2
     auto &set1 = (netNum >= v->netNum) ? this->clustersNetSet :v->clustersNetSet;
     auto &set2 = (netNum >= v->netNum) ? v->clustersNetSet : this->clustersNetSet;
