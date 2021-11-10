@@ -301,6 +301,12 @@ int getBestStage(std::vector<int>&gainAcc,std::vector<float>&ratioRecord,int ite
     
     int bestGain = -INT_MAX;
     for(int i = 1;i <= iterations;i++){                 //only compare 1 to iteration , not 0.
+        
+        if(i==18)
+        {
+            std::cout<<"gain:"<<gainAcc.at(18)<<" ratio:"<<ratioRecord.at(i)<<"\n";
+        }
+        
         if(!validRatio(i))continue;//not valid ratio
 
         if(bestGain < gainAcc.at(i)){ // new best
@@ -467,10 +473,10 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
         // init GainBucket every iteration.
         initGainBucket(cellVec,netlist,b1,b2);
 
-        std::cout<<"b1\n";
-        showGainBucket(&b1,cellVec);
-        std::cout<<"b2\n";
-        showGainBucket(&b2,cellVec);
+        // std::cout<<"b1\n";
+        // showGainBucket(&b1,cellVec);
+        // std::cout<<"b2\n";
+        // showGainBucket(&b2,cellVec);
 
         gainAcc.at(0) = 0;
         // OnePass
@@ -479,6 +485,8 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
         // Pick best state 
         int bestIteration = getBestStage(gainAcc,ratioRecord,totalIteration,{ratio1,ratio2});
         maxGain = gainAcc.at(bestIteration);
+
+ 
 
         // Recover state to bestIteration.
         RecoverToStage(cellVec,netlist,moveRecord,bestIteration,totalIteration,g1Num,g2Num);
@@ -519,7 +527,7 @@ int Cluster::clustering(Cluster*v,int phase){
         std::cerr<<"warning in clustering," <<sortId <<" is invalid,please use master in this cluster to cluster another vertex,master id :"<<this->clusterId<<"\n";
         return this->clusterId;
     }
-
+    // std::cout<<this->sortId<<" clustered "<<v->sortId<<"in phase "<<phase<<"\n";
     // Cluster all cells.   (setting flag is enough.)
     v->valid = false; // not valid until decluster
     v->clusterId = this->clusterId; //not a cluster master ever.
@@ -534,11 +542,11 @@ int Cluster::clustering(Cluster*v,int phase){
     for(auto net:v->NetSet){  //v->Netset is sorted,can use hint for speeding up.
         auto pos = NetSet.find(net.first);
         if(pos ==NetSet.end()){
-            hint = NetSet.insert(hint,net);
+            hint = NetSet.insert(hint,{net.first,net.second});
             newNetNum++;
         }
         else{
-            pos->second++;
+            pos->second += net.second;//bug-Fix
         }
     }
     this->netNum += newNetNum;
@@ -552,7 +560,17 @@ std::vector<int> Cluster::decluster(int phase){
         std::vector<int>declusterID;
         std::list<Cluster*>remain;
         for(Cluster* cell : cells){
+            
+            // if(cell->sortId==5067&&cell->clusterPhase==phase)
+            // {
+            //     std::cout<<"find 5067 in phase"<<phase<<"\n";
+            // }
+            
             if(cell != this && cell->clusterPhase == phase){//the specified phase.
+
+                
+
+                // std::cout<<this->sortId<<" decluster "<<cell->sortId<<"in phase"<<phase<<"\n";
                 cell->valid = true;
                 cell->clusterId = cell->sortId;
                 // cell->iscluster = cell->cellsNum > 1;
@@ -560,8 +578,15 @@ std::vector<int> Cluster::decluster(int phase){
                 cell->clusterPhase = -1; 
                 for(auto net:cell->getNets()){
                     auto it = this->NetSet.find(net.first);
-                    if(!(--it->second))
+                    if(!(it->second-=net.second)){
                         this->NetSet.erase(it);
+                        // std::cout<<"erase net\n";
+                    }
+                    else if(it->second<0)
+                    {
+                        std::cerr<<"error\n";
+                        exit(1);
+                    }
                 }
                 declusterID.push_back(cell->clusterId);
                 this->cellsNum-=cell->cellsNum;

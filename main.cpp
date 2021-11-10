@@ -13,16 +13,16 @@
 #include <omp.h>
 
 std::pair<std::vector<Cluster*>,std::vector<Net*>> parser(const std::string &filename);
-
+void InitialPartition(std::vector<Cluster*>&cellVec,std::vector<bool>&partition);
 void SortById(std::vector<Cluster*>&cellVec);
 void SortById(std::vector<Net*>&netVec);
 
 void InitialPartition_all1(std::vector<Cluster*>&cellVec);
 void Output(std::vector<Cluster*>&cellVec);
 
-void showNet(Net*net,std::vector<Cluster*>&cellVec);
+void showNet(Net*net,std::vector<Cluster*>&cellVec,std::ofstream&out);
 void showNet(std::vector<Net*>net,std::vector<Cluster*>&cellVec);
-void showCell(std::vector<Cluster*>&cellVec);
+void showCell(std::vector<Cluster*>&cellVec,std::string name);
 
 void showCell(Cluster*c);
 
@@ -179,83 +179,31 @@ int main(int argc,char*argv[]){
     SortById(cellVec); // sort 
     SortById(netList);
 
+    int origin = 0;
+    for(auto c:cellVec)
+    {
+        if(c->is_master())
+        {
+            origin++;
+        }
+    }
+    std::cout<<"origin:"<<origin<<"\n";
+
+    // showCell(cellVec,"d1.txt");
+
     InitialPartition_all1(cellVec);
 
-    std::cout<<"start coarsen\n";
+    // std::cout<<"start coarsen\n";
     auto coarsenResult = Coarsen(cellVec,netList);
-    
-    // Cluster *c1 = cellVec.at(0);
-    // Cluster *c2 = cellVec.at(1);
-
-    // Cluster *c3 = cellVec.at(2);
-    // Cluster *c4 = cellVec.at(3);
-
-    // Cluster *c5 = cellVec.at(4);
-    // std::cout<<"init------------------------------------\n";
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec);
-    // c1->clustering(c2,1);
-    // std::cout<<"c1 cluster c2------------------------------------\n";
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec); 
-
-    // c4->clustering(c3,2);
-    // std::cout<<"c4 cluster c3------------------------------------\n";
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec);
-
-
-    // c5->clustering(c1,3);
-    // std::cout<<"c5 cluster c1------------------------------------\n";
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec);
-
-    // c4->clustering(c5,4);
-    // std::cout<<"c4 cluster c5------------------------------------\n";
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec);
-
-
-    // std::queue<int>deQ;
-    // int valid = 0;
-    // for(int i = 0;i<5;i++)
-    // {
-    //     if(cellVec.at(i)->is_master()&&cellVec.at(i)->is_cluster()){
-    //         deQ.push(i);
-    //         valid++;
-    //     }
-    // }
-    // std::cout<<"flexible vertex num : "<<valid<<"\n";
-
-
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,4);
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec);
-
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,3);
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec);
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,2);
-    // // for(int i= 0;i<5;i++){showCell(cellVec.at(i));}
-    // showNet(netList,cellVec);
-    // std::cout<<"decluster------------------------------------\n";
-    // Decluster(deQ,cellVec,netList,1);
-    // showNet(netList,cellVec);
-
-    for(int i= 0;i<cellVec.size();i++){
-        if(cellVec.at(i)->isValid())
-        showCell(cellVec.at(i));
-    }
     std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
     std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
     std::cout<<"start Fm\n";
     FM(cellVec,netList,0.45,0.55,coarsenResult.second);
     std::cout<<"end Fm\n";
-
-    // // InitNets(cellVec,netList);
+    // showCell(cellVec,"d2.txt");
+    // showNet(netList,cellVec);
+    // InitNets(cellVec,netList);
+    
     std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
     Output(cellVec);
     for(auto net:netList)
@@ -314,18 +262,18 @@ std::pair<std::vector<Cluster*>,std::vector<Net*>> parser(const std::string &fil
     return {cells,nets}; 
 }
 
-// void InitialPartition(std::vector<Cell>&cellVec,std::vector<bool>&partition)
-// {
-//     if(cellVec.size()!=partition.size())
-//     {
-//         std::cerr<<"Initial partition size is uncompatible\n";
-//         return ;
-//     }
-//     for(int i = 0;i<cellVec.size();i++){
-//         cellVec.at(i).group1 = partition.at(i);
-//     }
+void InitialPartition(std::vector<Cluster*>&cellVec,std::vector<bool>&partition)
+{
+    if(cellVec.size()!=partition.size())
+    {
+        std::cerr<<"Initial partition size is uncompatible\n";
+        return ;
+    }
+    for(int i = 0;i<cellVec.size();i++){
+        cellVec.at(i)->group1 = partition.at(i);
+    }
 
-// }
+}
 
 void InitialPartition_avg(std::vector<Cluster*>&cellVec){
     bool group1 = true;
@@ -347,13 +295,16 @@ void Output(std::vector<Cluster*>&cellVec){
         out << c->group1 <<"\n";
     out.close();
 }
+
 void showNet(std::vector<Net*>net,std::vector<Cluster*>&cellVec)
 {
+    std::ofstream out{"d1.txt"};
     InitNets(cellVec,net);
     for(auto n:net)
-        showNet(n,cellVec);
+        showNet(n,cellVec,out);
+    out.close();
 }
-void showNet(Net*net,std::vector<Cluster*>&cellVec)
+void showNet(Net*net,std::vector<Cluster*>&cellVec,std::ofstream&out)
 {
 
     
@@ -377,6 +328,9 @@ void showNet(Net*net,std::vector<Cluster*>&cellVec)
     }
     std::cout<<"\n";
 
+
+    
+
     // out<<"Net"<<net->NetId<<"\n";
     // out<<"total cells:"<<net->cells.size()<<"\n";
     // out<<"group1:"<<net->group1<<" group2 "<<net->group2<<"\n";
@@ -396,6 +350,7 @@ void showNet(Net*net,std::vector<Cluster*>&cellVec)
     //     out<<"\n";
     // }
     // out<<"\n";
+    
 }
 
 void showCell(Cluster*c)
@@ -414,18 +369,18 @@ void showCell(Cluster*c)
         }
         std::cout<<"\n\n";
 }
-void showCell(std::vector<Cluster*>&cellVec)
+void showCell(std::vector<Cluster*>&cellVec,std::string name)
 {
 
-    std::ofstream out{"d1.txt"};
+    std::ofstream out{name};
 
     for(auto c:cellVec)
     {
         out<<"real id :"<<c->id<<"\n";
         out<<"sort id :"<<c->sortId<<"\n";
         out<<"cluster id:"<<c->clusterId<<"\n";
-        std::string gp = c->group1 ? "gp1":"gp2";
-        out<<"in "<<gp<<"\n";
+        // std::string gp = c->group1 ? "gp1":"gp2";
+        // out<<"in "<<gp<<"\n";
         
         
         if(c->is_master())
