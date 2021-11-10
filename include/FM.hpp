@@ -24,7 +24,7 @@ struct Net{
 struct Cell{
     int id;//編號不一定會是從1~node的總數
     int sortId;
-    bool group1;
+    bool group1 = false;
     std::list<Net*>nets;
     int netNum = 0;
     virtual void addNet(Net*net){nets.push_front(net);netNum++;}

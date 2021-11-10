@@ -401,9 +401,11 @@ bool Decluster(dClusterQ&q,std::vector<Cluster*>&cellVec,std::list<Net*>&netlist
             std::cout<<"dclust:"<<clst<<"\n";
             cellVec.at(clst)->decluster();
         }
+        InitNets(cellVec,netlist);
         return true;
     }
     else{
+        InitNets(cellVec,netlist);
         return false;
     }
 }
@@ -423,9 +425,12 @@ void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float 
     //clustering Queue
     auto clustersQ = getdClusterQ(cellVec);
     bool canDecluster;
-    int deClusterNum = totalNum/5;
+    int deClusterNum = 10;
 
     int maxGain;
+    int cut = CutSize(netlist);
+    std::cout<<"origin cutsize:"<<cut<<"\n";
+
     do{
         Bucket b1,b2;
         // init GainBucket every iteration.
@@ -441,8 +446,10 @@ void FM(std::vector<Cluster*>&cellVec,std::list<Net*>netlist,float ratio1,float 
 
         // Recover state to bestIteration.
         RecoverToStage(cellVec,moveRecord,bestIteration,totalIteration,g1Num,g2Num);
-    }while(maxGain != 0 || Decluster(clustersQ,cellVec,netlist,deClusterNum));
-
+        std::cout<<"maxGain:"<<maxGain<<"\n";
+        std::cout<<"cut size:"<<CutSize(netlist);
+    }while(maxGain > 0 || Decluster(clustersQ,cellVec,netlist,deClusterNum));
+// 
 }
 int CutSize(std::list<Net*>&net){
     int cut = 0;
@@ -468,16 +475,16 @@ int Cluster::clustering(Cluster*v){
     }
 
     //flag setting
-    v->clusterId = this->clusterId;
-    this->valid = v->valid = false;
-    v->iscluster = false;this->iscluster = true;
-    this->cellsNum += v->cellsNum;
-    // v->cellsNum = this->cellsNum;
-
+    this->valid = false;
+    this->iscluster = true;
     // cluster
     for(auto c:v->cells){
         this->cells.push_back(c);
         c->clusterId = this->clusterId; // bug-Fix
+        c->iscluster = false;
+        this->cellsNum++;
+        c->valid = false;
+        c->group1 = this->group1; //Buf-FIX
     }
     //set1 is bigger than set2
     auto &set1 = (netNum >= v->netNum) ? this->clustersNetSet :v->clustersNetSet;
@@ -494,15 +501,24 @@ int Cluster::clustering(Cluster*v){
     v->clustersNets.clear();
     return this->clusterId;
 }
-
+#include <algorithm>
 void Cluster::BuildClustersNets(){  
     if(is_master()&&is_cluster()){
         netNum = 0;
         clustersNets.clear();
+
+        std::vector<Net*>nets;
+        nets.reserve(clustersNetSet.size());
         for(auto net:clustersNetSet){
-            clustersNets.push_front(net);
+            // clustersNets.push_front(net);
+            nets.push_back(net);
             netNum++;
         }
+        std::sort(nets.begin(),nets.end(),[](Net*n1,Net*n2){return n1->NetId < n2->NetId;});//保持順序比較好找bug
+
+        for(auto net:nets)
+            clustersNets.push_back(net);
+
         valid = true;
     }else{
         std::cerr<<"warning !  \
