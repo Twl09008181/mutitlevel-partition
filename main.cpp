@@ -63,7 +63,7 @@ int main(int argc,char*argv[]){
     auto coarsenResult = Coarsen(cellVec,netList,stage);
     std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
     std::cout<<"total coarsen stage:"<<coarsenResult.second<<"\n";
-    InitNets(cellVec,netList);
+    
     FM(cellVec,netList,0.45,0.55,coarsenResult.second);
 
     std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";

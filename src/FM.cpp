@@ -443,6 +443,9 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
     int totalNum = cellVec.size();
     preCheckConstraint(totalNum,ratio1,ratio2);
 
+    //Init nets
+    InitNets(cellVec,netlist);
+
     //allocate information Recored, idx start from 1 .
     std::vector<int>gainAcc(cellVec.size() + 1,-1);//accumulative gain 
     std::vector<int>moveRecord(cellVec.size() + 1,-1);
