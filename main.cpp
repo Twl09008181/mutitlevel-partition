@@ -49,25 +49,24 @@ int main(int argc,char*argv[]){
 
     InitialPartition_all1(cellVec);
 
-
-    int stage;
-    if(cellVec.size()>80000)
-        stage = 2;
-    else if(cellVec.size()>40000)
-        stage = 3;
-    else if(cellVec.size()>10000)
-        stage = 4;
-    else{
-        stage = 10;
-    }
+    int stage = 6;
+    // if(cellVec.size()>80000)
+    //     stage = 2;
+    // else if(cellVec.size()>40000)
+    //     stage = 3;
+    // else if(cellVec.size()>10000)
+    //     stage = 4;
+    // else{
+    //     stage = 10;
+    // }
     
     auto coarsenResult = Coarsen(cellVec,netList,stage);
-    // std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
-    // std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
+    std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
+    std::cout<<"total coarsen stage:"<<coarsenResult.second<<"\n";
     InitNets(cellVec,netList);
     FM(cellVec,netList,0.45,0.55,coarsenResult.second);
 
-    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
     Output(cellVec);
     for(auto net:netList)
         delete net;
