@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <float.h>
 #include <climits>
+#include <omp.h>
 #ifdef DEBUG
 extern std::map<int,char>dict;
 #endif
@@ -128,13 +129,7 @@ void showGainBucket(Bucket*b,std::vector<Cluster*>&cellVec)
 }
 
 
-inline int group1Num(std::vector<Cluster*>&cellVec){
-    int n = 0;
-    for(auto cell:cellVec)
-        if(cell->isValid()&&cell->group1)
-            n += cell->getSize();
-    return n;
-}
+
 
 void Net::addCells(Cell*cell){
     cells.push_front(cell->sortId);
@@ -593,73 +588,44 @@ std::vector<int> Cluster::decluster(int phase){
 
 
 
-
-
-
-//linear intersections
-std::list<Net*> intersections(std::vector<Net*>&v1,std::vector<Net*>&v2)
-{   
-    auto nidcmp = [](Net*n1,Net*n2){return n1->NetId < n2->NetId;};
-    std::sort(v1.begin(),v1.end(),nidcmp);
-    std::sort(v2.begin(),v2.end(),nidcmp);
-    int i = 0,j = 0;
-    std::list<Net*>inters;
-    while(i < v1.size() && j < v2.size()){
-        int nid1 = v1.at(i)->NetId;
-        int nid2 = v2.at(j)->NetId;
-        if(nid1==nid2){
-            inters.push_front(v1.at(i));
-            i++;
-            j++;
-        }else if (nid1 < nid2){
-            i++;
-        }else{
-            j++;
-        }
-    }
-    return inters;
-}
-
-
-std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Cluster*cell,std::vector<bool>&mark)
-{
+std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Cluster*cell,std::vector<bool>&mark){
     int closet = -1;//if return is -1 , then cell has no neighbor.
     float score = -FLT_MAX;
-    std::vector<Net*>NetsRecord;NetsRecord.reserve(cell->netNum);
-    std::unordered_map<int,int>neighbors;//quickly find neighbors.
-
-    std::list<int>Neighbors;
-    for(auto netinfo:cell->getNets()){
+    std::unordered_map<int,float>neighbors;//quickly find neighbors.
+    
+    for(auto netinfo:cell->getNets()){       //scan all nets incident on this cell.
         Net* net = netVec.at(netinfo.first);
-        NetsRecord.push_back(net);
-        for(auto neighbor:net->cells)
-        {
-            if(neighbor!=cell->sortId && cellVec.at(neighbor)->isValid()&&!mark.at(neighbor))
-                neighbors.insert({neighbor,0});
+        for(auto neighbor:net->cells){ //scan neighbor 
+            if(neighbor!=cell->sortId && cellVec.at(neighbor)->isValid() && !mark.at(neighbor)){  
+                Cluster* n = cellVec.at(neighbor); 
+                float w = 1/float(net->group1 + net->group2);
+                float sc = w/((cell->getSize() + n->getSize())*(cell->getSize() + n->getSize()));
+                auto it = neighbors.find(neighbor);
+                if(it==neighbors.end()){
+                    neighbors.insert({neighbor,sc});
+                }
+                else{
+                    it->second+=sc;
+                }
+            }
         }
     }
-
-    for(auto nid:neighbors){
-        Cluster* n = cellVec.at(nid.first);
-
-        // get Net 
-        std::vector<Net*>n_NetsRecord;n_NetsRecord.reserve(n->netNum);
-        for(auto netinfo:n->getNets())n_NetsRecord.push_back(netVec.at(netinfo.first));
- 
-        // get intersections
-        auto inters = intersections(NetsRecord,n_NetsRecord);
-
-        // score = w/(size1+size2)
-        float sc = 0;
-        for(auto net:inters){
-            float w = 1/float(net->group1 + net->group2);
-            sc += w/((cell->getSize() + n->getSize())*(cell->getSize() + n->getSize()));
-        }
+    //find closet
+    for(auto neighbor:neighbors){
+        float sc = neighbor.second;
         if(sc > score){
-            closet = nid.first;
+            closet = neighbor.first;
             score = sc;
         }
     }
+    
+    if(closet!=-1)
+    for(auto netinfo:cell->getNets()){
+        Net* net = netVec.at(netinfo.first);
+        net->cells.remove(closet);
+        net->cells.remove(cell->sortId);
+    }
+
     return {closet,score};
 }
 
@@ -673,33 +639,29 @@ int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phas
     std::vector<bool>mark;mark.resize(cellVec.size(),false);
     std::vector<int>closetId;closetId.resize(cellVec.size(),-1);
 
-    // #pragma omp parallel
+
+    for(int i = 0;i<cellVec.size();i++)            
     {
-        // #pragma omp for
-        for(int i = 0;i<cellVec.size();i++)            
-        {
-            Cluster& cell = *cellVec.at(i);
-            if(cell.isValid() && !mark.at(i)){
-                auto closet = getCloset(cellVec,netlist,&cell,mark);
-                if(closet.first==-1)continue;
-                mark.at(i) = true;
-                mark.at(closet.first) = true;
-                closetId.at(i) = closet.first;
-            }
+        Cluster& cell = *cellVec.at(i);
+        if(cell.isValid() && !mark.at(i)){
+            auto closet = getCloset(cellVec,netlist,&cell,mark);
+            if(closet.first==-1)continue;
+            mark.at(i) = true;
+            mark.at(closet.first) = true;
+            closetId.at(i) = closet.first;
         }
     }
     
-    
-    std::list<int>clusterId;
     for(int i = 0;i<closetId.size();i++){
         if(closetId.at(i)!=-1){
             int cluserId1 = cellVec.at(i)->clusterId;
             int cluserId2 = cellVec.at(closetId.at(i))->clusterId;
             Cluster* c1 = cellVec.at(cluserId1);
             Cluster* c2 = cellVec.at(cluserId2);
-            clusterId.push_front(c1->clustering(c2,phase));
+            c1->clustering(c2,phase);
         }
     }
+
     int Num = 0;
     for(auto cell:cellVec){
         if(cell->is_master()){

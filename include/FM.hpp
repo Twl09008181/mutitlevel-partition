@@ -148,7 +148,7 @@ int CutSize(std::vector<Net*>&net);
 
 
 // return remain vertex num , total phase
-// Now support Edge coarsening
+// Now support Edge coarseningt
 std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist);
 
 bool Decluster(std::queue<int>&declusterQ,std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase);
