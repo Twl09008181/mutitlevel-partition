@@ -48,10 +48,7 @@ sys     0m0.000s
 參考hMetisKway-karypis-dac99的multi-level partition
 
 
-
-![image-20211112005024141](C:\Users\TimWeiLee\AppData\Roaming\Typora\typora-user-images\image-20211112005024141.png)
-
-
+![image](https://user-images.githubusercontent.com/52790122/141337366-0469b6fe-3c33-4e8b-b5ac-2fc62be8b381.png)
 
 Coarsen方式:使用Edge coarsen.
 
