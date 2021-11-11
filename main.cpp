@@ -179,30 +179,64 @@ int main(int argc,char*argv[]){
     SortById(cellVec); // sort 
     SortById(netList);
 
-    int origin = 0;
-    for(auto c:cellVec)
-    {
-        if(c->is_master())
-        {
-            origin++;
-        }
-    }
-    std::cout<<"origin:"<<origin<<"\n";
 
-    // showCell(cellVec,"d1.txt");
+
+    // std::ifstream indebug{"outputDebug.txt"};
+
+
+    // int s;
+    // int i = 0;
+    // while(indebug >> s)
+    // {
+    //     cellVec.at(i++)->group1 = s;
+    // }
+
+
+    // indebug.close();
+    
+    // InitNets(cellVec,netList);
+    // std::cout<<"Cutsize:"<<CutSize(netList);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // int origin = 0;
+    // for(auto c:cellVec)
+    // {
+    //     if(c->is_master())
+    //     {
+    //         origin++;
+    //     }
+    // }
+    // std::cout<<"origin:"<<origin<<"\n";
+
+  
 
     InitialPartition_all1(cellVec);
 
     // std::cout<<"start coarsen\n";
     auto coarsenResult = Coarsen(cellVec,netList);
-    std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
-    std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
-    std::cout<<"start Fm\n";
+    // std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
+    // std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
+    // std::cout<<"start Fm\n";
+
+
+    InitNets(cellVec,netList);
     FM(cellVec,netList,0.45,0.55,coarsenResult.second);
-    std::cout<<"end Fm\n";
-    // showCell(cellVec,"d2.txt");
-    // showNet(netList,cellVec);
-    // InitNets(cellVec,netList);
+    // FM(cellVec,netList,0.45,0.55,0);
+
+   
     
     std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
     Output(cellVec);

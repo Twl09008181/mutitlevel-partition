@@ -90,7 +90,16 @@ void InitNets(std::vector<Cluster*>&cellVec,std::vector<Net*>&nets);
 
 // <from part,to part>
 inline std::pair<int,int> GroupNum(const Net& net,const Cell* cell){
-    return cell->group1? std::pair<int,int>{net.group1,net.group2} : std::pair<int,int>{net.group2,net.group1};
+    // return cell->group1? std::pair<int,int>{net.group1,net.group2} : std::pair<int,int>{net.group2,net.group1};
+
+    int gp1 = 0;
+    int gp2 = 0;
+
+    for(auto c:net.cells)
+    {
+        
+    }
+
 }
 
 inline int alphabetical_order(int gain1,int gain2,int id1,int id2){
