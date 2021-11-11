@@ -399,40 +399,18 @@ int OnePass(const OnepassArgs&args,ties *tie){
 bool Decluster(std::queue<int>&declusterQ,std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase){
 
     if(declusterQ.empty()||phase<=0)return false;
-
-    
     std::queue<int>nextstage;
-
     while(!declusterQ.empty()){
         int cid = declusterQ.front();
         declusterQ.pop();
         for(auto clst:cellVec.at(cid)->decluster(phase)){
-            // std::cout<<clst<<" is released\n";
             nextstage.push(clst);
         }
         if(cellVec.at(cid)->is_cluster())
            nextstage.push(cid);
-    }
-
-
-    int validnum = 0;
-    for(auto cell:cellVec)
-    {
-        if(cell->is_master())
-        {
-            // std::cout<<cell->id<<"is master\n";
-            validnum++;
-        }
-    }
-    std::cout<<"after decluster,validNum:"<<validnum<<"\n";
-
-    
+    }  
     InitNets(cellVec,netlist);
     declusterQ = std::move(nextstage);
-
-
-    std::cout<<"after decluster,cutsize:"<<CutSize(netlist)<<"\n";
-
     return true;
 }
 
@@ -495,8 +473,8 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
         RecoverToStage(cellVec,netlist,moveRecord,bestIteration,totalIteration,g1Size,g2Size);
 
         maxGain = gainAcc.at(bestIteration);
-        std::cout<<"maxGain:"<<maxGain<<"\n";
-        std::cout<<"cut size:"<<CutSize(netlist)<<"\n";
+        // std::cout<<"maxGain:"<<maxGain<<"\n";
+        // std::cout<<"cut size:"<<CutSize(netlist)<<"\n";
 
     }while(maxGain > 0 || Decluster(declusterQ,cellVec,netlist,phase--)); 
 }
@@ -683,9 +661,9 @@ std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netli
     int phase = 0;
     while(phase < stage && (num = EdgeCoarsen(cellVec,netlist,++phase))>lowLimit)
     {
-        std::cout<<"num:"<<num<<"\n";
+        // std::cout<<"num:"<<num<<"\n";
     }
-    std::cout<<"num:"<<num<<"\n";
+    // std::cout<<"num:"<<num<<"\n";
     InitNets(cellVec,netlist);
     return {num,phase};
 }

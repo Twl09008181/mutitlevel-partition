@@ -60,16 +60,14 @@ int main(int argc,char*argv[]){
     else{
         stage = 10;
     }
-    std::cout<<"start coarsen\n";
+    
     auto coarsenResult = Coarsen(cellVec,netList,stage);
-    std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
-    std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
-    std::cout<<"start Fm\n";
-
+    // std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
+    // std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
     InitNets(cellVec,netList);
     FM(cellVec,netList,0.45,0.55,coarsenResult.second);
 
-    std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
+    // std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
     Output(cellVec);
     for(auto net:netList)
         delete net;
