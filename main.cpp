@@ -49,8 +49,19 @@ int main(int argc,char*argv[]){
 
     InitialPartition_all1(cellVec);
 
+
+    int stage;
+    if(cellVec.size()>80000)
+        stage = 2;
+    else if(cellVec.size()>40000)
+        stage = 3;
+    else if(cellVec.size()>10000)
+        stage = 4;
+    else{
+        stage = 10;
+    }
     std::cout<<"start coarsen\n";
-    auto coarsenResult = Coarsen(cellVec,netList);
+    auto coarsenResult = Coarsen(cellVec,netList,stage);
     std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
     std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
     std::cout<<"start Fm\n";

@@ -676,12 +676,12 @@ int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phas
 
 
 //remain vertex num , total phase
-std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist){
+std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int stage){
 
-    int targetNum = 200;
+    int lowLimit = 200;
     int num;
     int phase = 0;
-    while((num = EdgeCoarsen(cellVec,netlist,++phase))>targetNum)
+    while(phase < stage && (num = EdgeCoarsen(cellVec,netlist,++phase))>lowLimit)
     {
         std::cout<<"num:"<<num<<"\n";
     }
