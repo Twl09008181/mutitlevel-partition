@@ -49,8 +49,7 @@ sys     0m0.000s
 
 
 
-![image-20211112005024141](C:\Users\TimWeiLee\AppData\Roaming\Typora\typora-user-images\image-20211112005024141.png)
-
+![image](https://user-images.githubusercontent.com/52790122/141340024-4eb0442a-152a-4fcc-b5d8-42662d9722a0.png)
 
 
 Coarsen方式:使用Edge coarsen.
