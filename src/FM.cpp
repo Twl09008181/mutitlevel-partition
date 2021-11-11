@@ -588,44 +588,47 @@ std::vector<int> Cluster::decluster(int phase){
 
 
 
-std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Cluster*cell,std::vector<bool>&mark){
+std::pair<int,double> getCloset(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Cluster*cell,std::vector<bool>&mark){
     int closet = -1;//if return is -1 , then cell has no neighbor.
-    float score = -FLT_MAX;
-    std::unordered_map<int,float>neighbors;//quickly find neighbors.
-    
+    double score = -FLT_MAX;
+    std::unordered_map<int,std::pair<int,double>>neighbors;//quickly find neighbors.
+    //不同平台,尋訪neighbors的順序會不同(unorderd_map)
+  
+    int neighborOrder = 0;
     for(auto netinfo:cell->getNets()){       //scan all nets incident on this cell.
         Net* net = netVec.at(netinfo.first);
         for(auto neighbor:net->cells){ //scan neighbor 
             if(neighbor!=cell->sortId && cellVec.at(neighbor)->isValid() && !mark.at(neighbor)){  
                 Cluster* n = cellVec.at(neighbor); 
-                float w = 1/float(net->group1 + net->group2);
-                float sc = w/((cell->getSize() + n->getSize())*(cell->getSize() + n->getSize()));
+                double w = 1/double(net->group1 + net->group2);
+                double sc = w/((cell->getSize() + n->getSize())*(cell->getSize() + n->getSize()));
                 auto it = neighbors.find(neighbor);
                 if(it==neighbors.end()){
-                    neighbors.insert({neighbor,sc});
+                    neighbors.insert({neighbor,{neighborOrder++,sc}});
                 }
                 else{
-                    it->second+=sc;
+                    it->second.second+=sc;
                 }
             }
         }
     }
-    //find closet
+
+    //因為unoordere_map在不同時刻或機器會不太一樣的行為
+    //為了有相同quality,這邊刻意用出現的順序來執行
+    //O(n) sort
+    //first is id,second is score
+    std::vector<std::pair<int,double>>neighborsVec;neighborsVec.resize(neighborOrder);
     for(auto neighbor:neighbors){
+        neighborsVec.at(neighbor.second.first) = {neighbor.first,neighbor.second.second};
+    }
+
+    for(auto neighbor:neighborsVec){
         float sc = neighbor.second;
-        if(sc > score){
+               if(sc >= score){
             closet = neighbor.first;
             score = sc;
         }
     }
-    
-    if(closet!=-1)
-    for(auto netinfo:cell->getNets()){
-        Net* net = netVec.at(netinfo.first);
-        net->cells.remove(closet);
-        net->cells.remove(cell->sortId);
-    }
-
     return {closet,score};
 }
 
