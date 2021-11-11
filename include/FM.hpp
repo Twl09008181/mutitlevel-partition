@@ -15,28 +15,57 @@ struct Net{
     int NetId;
     using CellId = int;//pesudo id (sort id)
     std::list<CellId> cells;
+    
+    //Core attributes. 
 
-    //need maintain for quickly cacluating gains.
+    // 1. Size : need maintain for quickly check ratios
     int group1 = 0;
     int group2 = 0;
+
+    // 2. Number  : need maintain for quickly cacluating gains.
+    int group1Num = 0;
+    int group2Num = 0;
+
+    //This two attributes are core of cluster&FM
+    //Be maintained in FM procedure using move()/recoverStage , and update in Cluster&deCluster using initNets().
+   
+    //for exampel  if clusterId = 0, have cells : 0,1,2
+    //assume this net only contain cell 0 and cell 0 now is in group1,
+    //then group1 = 3   , group2 = 0   for view of size. 
+    //then group1Num = "1" , group2Num = 0  for view of number.
+
+    void updateGroup(int size,bool From1To2){
+        if(From1To2){
+            group1 -= size;
+            group2 += size;
+            group1Num --;
+            group2Num ++;
+        }
+        else{
+            group1 += size;
+            group2 -= size;
+            group1Num ++;
+            group2Num --;
+        }
+    }
     void addCells(Cell*cell);
 };
 
 struct Cell{
-    int id;//編號不一定會是從1~node的總數
-    int sortId;
+    int id;//real inputId
+    int sortId;//sorted in CellVec id
     bool group1 = false;
     int netNum = 0;
     std::map<int,int>NetSet;//net id , second is for cluster
     virtual void addNet(Net*net){NetSet.insert({net->NetId,1});netNum++;}
     // bucket relative
-    int gain = 0;
-    bool freeze = true;
-    std::list<int>::iterator it;//to access gain bucket.
+    int gain = 0;    //used to get position in gainBucket
+    bool freeze = true; //if freeze , it can't be in gainBucket
+    std::list<int>::iterator it;//to quickly access gain bucket list.
     std::map<int,int>& getNets(){return NetSet;}
     virtual bool isValid(){return true;}
     virtual int getSize()const{return 1;}  
-};//using std::vector<Cell> to save all Cells.   
+};//Fm need std::vector<Cell> to save all Cells.   
 
 
 
@@ -46,7 +75,7 @@ class Cluster : public Cell{
 public:
     Cluster(int realid){
         id = realid;
-        // cluster relative flag.
+        // cluster relative attributes.
         cells.push_front(this);
         valid = true;
         iscluster = false;
@@ -54,7 +83,11 @@ public:
         cellsNum = 1;
     }
 
-    void setSortId(int sortedId){clusterId = sortId = sortedId;}
+
+    //Must initial by setSortID.
+    void setSortId(int sortedId){clusterId = sortId = sortedId;}//need sorted to get sortId,clusterId
+
+    //Flag
     bool is_master(){return sortId==clusterId;}
     bool is_cluster(){return cellsNum > 1;}//only one cell is not a cluster.
 
@@ -62,16 +95,15 @@ public:
     int clusterId;
     bool valid;//cluster or non-cluster single valid cell. 
     bool iscluster;
-    std::list<Cluster*>cells;//紀錄存了哪些cluster 
-    int originNetNum = 0;//當變為non-cluster時會用到
-    int cellsNum;//maintain for quickly get size.
-    int clusterPhase = -1;//used to decluster
+    std::list<Cluster*>cells;// recored for decluster
+    int originNetNum = 0;// recored for decluster
+    int cellsNum;// maintain for quickly get size.
+    int clusterPhase = -1;// if clusterPhase!=-1, this cluster cell is clustered by another cell in phase = clusterPhase.
     
 
     // update cluster member
     int clustering(Cluster*v,int phase);//return id
     std::vector<int> decluster(int phase);
-
 
     // inherint functions
     int getSize()const{return cellsNum;}
@@ -88,20 +120,7 @@ public:
 
 void InitNets(std::vector<Cluster*>&cellVec,std::vector<Net*>&nets);
 
-// <from part,to part>
-inline std::pair<int,int> GroupNum(const Net& net,const Cell* cell){
-    // return cell->group1? std::pair<int,int>{net.group1,net.group2} : std::pair<int,int>{net.group2,net.group1};
-
-    int gp1 = 0;
-    int gp2 = 0;
-
-    for(auto c:net.cells)
-    {
-        
-    }
-
-}
-
+// break tie example using  alphabetical_order
 inline int alphabetical_order(int gain1,int gain2,int id1,int id2){
     if(gain1 > gain2)return id1;
     if(gain1 < gain2)return id2;
@@ -111,7 +130,7 @@ inline int alphabetical_order(int gain1,int gain2,int id1,int id2){
 using ties = decltype(alphabetical_order);
 
 struct Bucket{
-    using CellId = int;//pesudo id.
+    using CellId = int;//pesudo id (sortId)
     std::vector<std::list<CellId>>gainVec;
     int maxGain;   
     int maxPin;
@@ -127,6 +146,10 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
 
 int CutSize(std::vector<Net*>&net);
 
+
+// return remain vertex num , total phase
+// Now support Edge coarsening
+std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist);
 
 bool Decluster(std::queue<int>&declusterQ,std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase);
 

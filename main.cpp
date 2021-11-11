@@ -28,150 +28,18 @@ void showCell(Cluster*c);
 
 void InitialPartition_avg(std::vector<Cluster*>&cellVec);
 
-// using ClusterQ = std::priority_queue<>
-// void Cluster
 
-//linear intersections
-std::list<Net*> intersections(std::vector<Net*>&v1,std::vector<Net*>&v2)
-{   
-    auto nidcmp = [](Net*n1,Net*n2){return n1->NetId < n2->NetId;};
-    std::sort(v1.begin(),v1.end(),nidcmp);
-    std::sort(v2.begin(),v2.end(),nidcmp);
-    int i = 0,j = 0;
-    std::list<Net*>inters;
-    while(i < v1.size() && j < v2.size()){
-        int nid1 = v1.at(i)->NetId;
-        int nid2 = v2.at(j)->NetId;
-        if(nid1==nid2){
-            inters.push_front(v1.at(i));
-            i++;
-            j++;
-        }else if (nid1 < nid2){
-            i++;
-        }else{
-            j++;
-        }
-    }
-    return inters;
-}
-
-
-std::pair<int,float> getCloset(std::vector<Cluster*>&cellVec,std::vector<Net*>&netVec,Cluster*cell,std::vector<bool>&mark)
-{
-    int closet = -1;//if return is -1 , then cell has no neighbor.
-    float score = -FLT_MAX;
-    std::vector<Net*>NetsRecord;NetsRecord.reserve(cell->netNum);
-    std::unordered_map<int,int>neighbors;//quickly find neighbors.
-
-    std::list<int>Neighbors;
-    for(auto netinfo:cell->getNets()){
-        Net* net = netVec.at(netinfo.first);
-        NetsRecord.push_back(net);
-        for(auto neighbor:net->cells)
-        {
-            if(neighbor!=cell->sortId && cellVec.at(neighbor)->isValid()&&!mark.at(neighbor))
-                neighbors.insert({neighbor,0});
-        }
-    }
-
-    for(auto nid:neighbors){
-        Cluster* n = cellVec.at(nid.first);
-
-        // get Net 
-        std::vector<Net*>n_NetsRecord;n_NetsRecord.reserve(n->netNum);
-        for(auto netinfo:n->getNets())n_NetsRecord.push_back(netVec.at(netinfo.first));
- 
-        // get intersections
-        auto inters = intersections(NetsRecord,n_NetsRecord);
-
-        // score = w/(size1+size2)
-        float sc = 0;
-        for(auto net:inters){
-            float w = 1/float(net->group1 + net->group2);
-            sc += w/((cell->getSize() + n->getSize())*(cell->getSize() + n->getSize()));
-        }
-        if(sc > score){
-            closet = nid.first;
-            score = sc;
-        }
-    }
-    return {closet,score};
-}
-
-//return cellNum after coarsen
-int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase){
-
-   
-
-    InitNets(cellVec,netlist);//need init first.
-
-    std::vector<bool>mark;mark.resize(cellVec.size(),false);
-    std::vector<int>closetId;closetId.resize(cellVec.size(),-1);
-
-    // #pragma omp parallel
-    {
-        // #pragma omp for
-        for(int i = 0;i<cellVec.size();i++)            
-        {
-            Cluster& cell = *cellVec.at(i);
-            if(cell.isValid() && !mark.at(i)){
-                auto closet = getCloset(cellVec,netlist,&cell,mark);
-                if(closet.first==-1)continue;
-                mark.at(i) = true;
-                mark.at(closet.first) = true;
-                closetId.at(i) = closet.first;
-            }
-        }
-    }
-    
-    
-    std::list<int>clusterId;
-    for(int i = 0;i<closetId.size();i++){
-        if(closetId.at(i)!=-1){
-            int cluserId1 = cellVec.at(i)->clusterId;
-            int cluserId2 = cellVec.at(closetId.at(i))->clusterId;
-            Cluster* c1 = cellVec.at(cluserId1);
-            Cluster* c2 = cellVec.at(cluserId2);
-            clusterId.push_front(c1->clustering(c2,phase));
-        }
-    }
-    int Num = 0;
-    for(auto cell:cellVec){
-        if(cell->is_master()){
-            Num++;
-        }
-    }
-    return Num;
-}
-
-
-//remain vertex num , total phase
-std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist){
-
-    int targetNum = 2;
-    int num;
-    int phase = 0;
-    while((num = EdgeCoarsen(cellVec,netlist,++phase))>targetNum)
-    {
-        std::cout<<"num:"<<num<<"\n";
-    }
-    std::cout<<"num:"<<num<<"\n";
-    InitNets(cellVec,netlist);
-    return {num,phase};
-}
 
 
 void debugInfo(std::vector<Cluster*>&cell);
 
 int main(int argc,char*argv[]){
 
-    if(argc!=2)
-    {
+    if(argc!=2){
         std::cerr<<"please enter ./main <INPUT> \n";
         exit(1);
     }
 
-    
     auto info = parser(argv[1]);//get unsorted cellVec
     // Get netlist and cell info.
     auto cellVec = info.first;
@@ -179,70 +47,21 @@ int main(int argc,char*argv[]){
     SortById(cellVec); // sort 
     SortById(netList);
 
-
-
-    // std::ifstream indebug{"outputDebug.txt"};
-
-
-    // int s;
-    // int i = 0;
-    // while(indebug >> s)
-    // {
-    //     cellVec.at(i++)->group1 = s;
-    // }
-
-
-    // indebug.close();
-    
-    // InitNets(cellVec,netList);
-    // std::cout<<"Cutsize:"<<CutSize(netList);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // int origin = 0;
-    // for(auto c:cellVec)
-    // {
-    //     if(c->is_master())
-    //     {
-    //         origin++;
-    //     }
-    // }
-    // std::cout<<"origin:"<<origin<<"\n";
-
-  
-
     InitialPartition_all1(cellVec);
 
-    // std::cout<<"start coarsen\n";
+    std::cout<<"start coarsen\n";
     auto coarsenResult = Coarsen(cellVec,netList);
-    // std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
-    // std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
-    // std::cout<<"start Fm\n";
-
+    std::cout<<"Coarsen to only "<<coarsenResult.first<<" cells\n";
+    std::cout<<"total coasen stage:"<<coarsenResult.second<<"\n";
+    std::cout<<"start Fm\n";
 
     InitNets(cellVec,netList);
     FM(cellVec,netList,0.45,0.55,coarsenResult.second);
-    // FM(cellVec,netList,0.45,0.55,0);
 
-   
-    
     std::cout<<"final cutsize:"<<CutSize(netList)<<"\n";
     Output(cellVec);
     for(auto net:netList)
         delete net;
-
 
     return 0;
 }
