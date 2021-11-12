@@ -56,7 +56,8 @@ Partition Refinement: FM
 核心演算法 : FM 流程
 
 ```
-    int maxGain;
+   int maxGain;
+    int Tolerance = 0;
     do{
         Bucket b1,b2;
         //  init GainBucket every iteration.
@@ -74,7 +75,12 @@ Partition Refinement: FM
         // std::cout<<"maxGain:"<<maxGain<<"\n";
         // std::cout<<"cut size:"<<CutSize(netlist)<<"\n";
 
-    }while(maxGain > 0 || Decluster(declusterQ,cellVec,netlist,phase--)); 
+        //Climbing,如果<=0 會試著移動看看  
+        if(maxGain <= 0)
+            Tolerance++;
+        else 
+            Tolerance = 0;
+    }while(Tolerance < 3 || Decluster(declusterQ,cellVec,netlist,phase--)); 
 ```
 
 
