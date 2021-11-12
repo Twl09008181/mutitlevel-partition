@@ -18,27 +18,24 @@ $ ./Lab2.exe <INPUT>
 ## Example	
 
 ```
+$ time ./Lab2 input2.txt.hgr
+Coarsen to only 3947 cells
+total coarsen stage:1
+final cutsize:33
 
-if setting coarsen stage = 6
-
-$ time ./Lab2.exe input3.txt.hgr
-Coarsen to only 1539 cells
-total coarsen stage:6
-final cutsize:19
-
-real    0m24.490s
+real    0m0.252s
 user    0m0.000s
 sys     0m0.031s
 
+$ time ./Lab2 input3.txt.hgr
+Coarsen to only 56859 cells
+total coarsen stage:1
+final cutsize:18
 
-$ time ./Lab2.exe input2.txt.hgr
-Coarsen to only 111 cells
-total coasen stage:6
-final cutsize:33
-
-real    0m1.293s
+real    0m2.582s
 user    0m0.000s
 sys     0m0.000s
+
 ```
 
 
