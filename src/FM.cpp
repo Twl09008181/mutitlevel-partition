@@ -476,8 +476,8 @@ void FM(std::vector<Cluster*>&cellVec,std::vector<Net*>netlist,float ratio1,floa
         RecoverToStage(cellVec,netlist,moveRecord,bestIteration,totalIteration,g1Size,g2Size);
 
         maxGain = gainAcc.at(bestIteration);
-        // std::cout<<"maxGain:"<<maxGain<<"\n";
-        // std::cout<<"cut size:"<<CutSize(netlist)<<"\n";
+        std::cout<<"maxGain:"<<maxGain<<"\n";
+        std::cout<<"cut size:"<<CutSize(netlist)<<"\n";
 
     }while(maxGain > 0 || Decluster(declusterQ,cellVec,netlist,phase--)); 
 }
@@ -656,17 +656,65 @@ int EdgeCoarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phas
 }
 
 
+int HyperEdgeCoarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int phase){
+
+    InitNets(cellVec,netlist);//need init first.
+    std::vector<Net*>netlistCpy(netlist.size(),nullptr);
+    std::copy(netlist.begin(),netlist.end(),netlistCpy.begin());
+    std::sort(netlistCpy.begin(),netlistCpy.end(),     //sorted by size
+        [](Net*n1,Net*n2){return (n1->group1+n1->group2) < (n2->group1+n2->group2);}    
+        );
+    std::vector<bool>mark;mark.resize(cellVec.size(),false);
+
+
+    std::list<Net*>notAllUnmark;
+    for(auto net:netlistCpy){
+        bool allUnmark = true;
+        for(auto c:net->cells){
+            if(mark.at(c)){
+                allUnmark = false;
+                break;
+            }
+        }
+        if(allUnmark){
+            for(auto c:net->cells)
+                mark.at(c) = true;
+            
+            auto ptr = net->cells.begin();
+            Cluster* clst = cellVec.at(*ptr);
+            ++ptr;
+            for(;ptr!=net->cells.end();++ptr)
+                clst->clustering(cellVec.at(*ptr),phase);
+        }
+        else{
+            notAllUnmark.push_back(net);
+        }
+    }
+    int Num = 0;
+    for(auto cell:cellVec){
+        if(cell->is_master()){
+            Num++;
+        }
+    }
+    
+    return Num;
+}
+
+
+
 //remain vertex num , total phase
 std::pair<int,int> Coarsen(std::vector<Cluster*>&cellVec,std::vector<Net*>&netlist,int stage){
 
     int lowLimit = 200;
     int num;
     int phase = 0;
-    while(phase < stage && (num = EdgeCoarsen(cellVec,netlist,++phase))>lowLimit)
+    while(phase < stage && (num = HyperEdgeCoarsen(cellVec,netlist,++phase))>lowLimit)
     {
-        // std::cout<<"num:"<<num<<"\n";
+        std::cout<<"num:"<<num<<"\n";
     }
     // std::cout<<"num:"<<num<<"\n";
     InitNets(cellVec,netlist);
     return {num,phase};
 }
+
+
