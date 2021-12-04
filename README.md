@@ -1,5 +1,5 @@
 
-# Partition - FM with coarsen and uncoarsen stage      
+# Partition - hMetis based on FM with coarsen and uncoarsen stage      
 
 ## Make    
 
@@ -53,7 +53,7 @@ Coarsen方式:使用Edge coarsen.
 
 Partition Refinement: FM
 
-核心演算法 : FM 流程
+核心演算法 : hMetis 流程
 
 ```
    int maxGain;
